@@ -14,7 +14,20 @@ const io = socketIo(server, {
 });
 
 // Statische Dateien servieren
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0'
+}));
+
+// Log static file serving
+app.use('/css/*', (req, res, next) => {
+  console.log('CSS file requested:', req.path);
+  next();
+});
+
+app.use('/js/*', (req, res, next) => {
+  console.log('JS file requested:', req.path);
+  next();
+});
 
 // Game data structure
 const lobbies = new Map();
@@ -88,26 +101,52 @@ const jeopardyQuestions = {
   }
 };
 
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Health check for Render (move to top)
+app.get('/health', (req, res) => {
+  console.log('Health check accessed');
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Routes
 app.get('/', (req, res) => {
+  console.log('Root route accessed');
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 app.get('/lobby/:lobbyId', (req, res) => {
+  console.log('Lobby route accessed:', req.params.lobbyId);
   res.sendFile(path.join(__dirname, 'views', 'lobby.html'));
 });
 
 app.get('/game/:lobbyId', (req, res) => {
+  console.log('Game route accessed:', req.params.lobbyId);
   res.sendFile(path.join(__dirname, 'views', 'game.html'));
 });
 
-// Health check for Render
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+// Catch-all handler for debugging
+app.get('*', (req, res) => {
+  console.log('404 - Route not found:', req.path);
+  res.status(404).send(`
+    <h1>Route not found: ${req.path}</h1>
+    <p>Available routes:</p>
+    <ul>
+      <li><a href="/">/ (Home)</a></li>
+      <li>/lobby/:lobbyId</li>
+      <li>/game/:lobbyId</li>
+      <li><a href="/health">/health</a></li>
+    </ul>
+  `);
 });
 
 // Socket.io connection handling
@@ -444,7 +483,22 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-server.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Express error:', err);
+  res.status(500).send('Internal Server Error');
+});
+
+// Start server
+server.listen(PORT, HOST, (err) => {
+  if (err) {
+    console.error('Server failed to start:', err);
+    process.exit(1);
+  }
+  
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
+  console.log(`📁 Serving static files from: ${path.join(__dirname, 'public')}`);
+  console.log(`📄 Views directory: ${path.join(__dirname, 'views')}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://${HOST}:${PORT}/health`);
 });
