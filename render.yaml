@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: jeopardy-game
+    env: node
+    plan: free
+    buildCommand: npm install --production
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
