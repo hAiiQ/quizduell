@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Game</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Game Header -->
+        <div class="game-header">
+            <h1>JEOPARDY - Runde <span id="currentRound">1</span></h1>
+            <div class="current-player">
+                Aktueller Spieler: <span id="currentPlayerName">-</span>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div class="game-board">
+            <div class="categories">
+                <!-- Categories will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Question Modal -->
+        <div id="questionModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="question-header">
+                    <h2 id="questionCategory"></h2>
+                    <div class="question-points"><span id="questionPoints"></span> Punkte</div>
+                </div>
+                <div class="question-text" id="questionText"></div>
+                
+                <!-- Player Answer Section -->
+                <div id="playerAnswerSection" class="answer-section">
+                    <input type="text" id="answerInput" placeholder="Deine Antwort..." maxlength="200">
+                    <button id="submitAnswerBtn">Antwort abgeben</button>
+                </div>
+                
+                <!-- Admin Control Section -->
+                <div id="adminAnswerSection" class="admin-section" style="display: none;">
+                    <div class="submitted-answer">
+                        <strong>Antwort von <span id="answerPlayerName"></span>:</strong>
+                        <div id="submittedAnswer"></div>
+                    </div>
+                    <div class="correct-answer">
+                        <strong>Richtige Antwort:</strong>
+                        <div id="correctAnswer"></div>
+                    </div>
+                    <div class="admin-controls">
+                        <button id="correctBtn" class="correct-btn">Richtig</button>
+                        <button id="incorrectBtn" class="incorrect-btn">Falsch</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scoreboard -->
+        <div class="scoreboard">
+            <h3>Punktestand</h3>
+            <div id="scoresList" class="scores-list">
+                <!-- Scores will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Webcam Section -->
+        <div class="webcam-section">
+            <div class="webcam-grid" id="webcamGrid">
+                <!-- Webcam feeds will be added here -->
+            </div>
+        </div>
+
+        <!-- Admin Controls -->
+        <div id="adminControls" class="admin-controls-panel" style="display: none;">
+            <button id="nextRoundBtn" class="admin-btn">Nächste Runde</button>
+            <button id="endGameBtn" class="admin-btn">Spiel beenden</button>
+        </div>
+
+        <!-- Game End Modal -->
+        <div id="gameEndModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Spiel beendet!</h2>
+                <div id="winners"></div>
+                <div id="finalScores"></div>
+                <button id="backToLobbyBtn">Zurück zur Startseite</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/game.js"></script>
+</body>
+</html>

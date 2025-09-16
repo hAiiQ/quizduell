@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Game</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-screen">
+            <h1 class="game-title">JEOPARDY</h1>
+            <div class="subtitle">Multiplayer Quiz Game</div>
+            
+            <div class="action-buttons">
+                <div class="create-lobby">
+                    <h2>Lobby erstellen</h2>
+                    <input type="text" id="adminName" placeholder="Dein Name" maxlength="20">
+                    <button id="createLobbyBtn">Lobby erstellen</button>
+                </div>
+                
+                <div class="join-lobby">
+                    <h2>Lobby beitreten</h2>
+                    <input type="text" id="playerName" placeholder="Dein Name" maxlength="20">
+                    <input type="text" id="lobbyCode" placeholder="Lobby-Code" maxlength="6" style="text-transform: uppercase;">
+                    <button id="joinLobbyBtn">Beitreten</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Lobby</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="lobby-screen">
+            <h1>Lobby <span id="lobbyId"></span></h1>
+            
+            <div class="lobby-info">
+                <div class="admin-section">
+                    <h3>Admin</h3>
+                    <div id="adminInfo" class="player-card admin-card">
+                        <span class="player-name"></span>
+                        <span class="admin-badge">ADMIN</span>
+                    </div>
+                </div>
+                
+                <div class="players-section">
+                    <h3>Spieler (<span id="playerCount">0</span>/4)</h3>
+                    <div id="playersList" class="players-list">
+                        <!-- Players will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="webcam-section">
+                <h3>Webcam-Test</h3>
+                <video id="localVideo" autoplay muted playsinline class="webcam-preview"></video>
+                <button id="toggleCameraBtn">Kamera aktivieren</button>
+            </div>
+            
+            <div class="lobby-actions" id="adminActions" style="display: none;">
+                <button id="startGameBtn" class="primary-btn">Spiel starten</button>
+            </div>
+            
+            <div class="lobby-actions">
+                <button id="leaveLobbyBtn" class="secondary-btn">Lobby verlassen</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/lobby.js"></script>
+</body>
+</html>
