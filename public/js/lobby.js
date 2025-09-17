@@ -1,37 +1,87 @@
 const socket = io();
 let isAdmin = false;
 let lobbyId = '';
-let jitsiApi = null;
-let jitsiLoadAttempts = 0;
-let jitsiMode = 'api'; // 'api' or 'iframe'
 
-// Global functions for HTML buttons - MUST be outside DOMContentLoaded
-window.retryJitsiLoad = function() {
-    console.log('🔄 Retrying Jitsi load...');
-    jitsiLoadAttempts++;
+// Global functions for HTML buttons - Custom Jitsi System
+window.loadCustomJitsi = function() {
+    const input = document.getElementById('jitsi-url-input');
+    const iframe = document.getElementById('custom-jitsi-iframe');
+    const welcome = document.getElementById('jitsi-welcome');
     
-    const loadingIndicator = document.getElementById('jitsi-loading');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'block';
-        loadingIndicator.innerHTML = `
-            <div>🔄 Erneuter Ladeversuch (${jitsiLoadAttempts})...</div>
-            <div style="font-size: 14px; margin-top: 10px;">Raum: jeopardy-lobby-${lobbyId}</div>
-            <div style="margin-top: 15px;">
-                <div class="loading-spinner" style="border: 3px solid #555; border-top: 3px solid #0066cc; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-            </div>
-        `;
+    if (!input || !iframe) {
+        console.error('❌ Jitsi elements not found');
+        return;
     }
     
-    if (window.jitsiApiLoaded) {
-        loadJitsiWithAPI(`jeopardy-lobby-${lobbyId}`);
-    } else {
-        loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
+    let url = input.value.trim();
+    
+    // Validate and clean URL
+    if (!url) {
+        alert('❌ Bitte gib einen Jitsi-Link ein');
+        return;
     }
+    
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    // Ensure it's a valid Jitsi URL
+    if (!url.includes('meet.jit.si/')) {
+        if (url.includes('jit.si')) {
+            // Fix common URL issues
+            url = url.replace('jit.si', 'meet.jit.si');
+        } else {
+            alert('❌ Bitte verwende einen gültigen Jitsi Meet Link (meet.jit.si/...)');
+            return;
+        }
+    }
+    
+    console.log(`🎥 Loading custom Jitsi: ${url}`);
+    
+    // Hide welcome, show iframe
+    if (welcome) welcome.style.display = 'none';
+    iframe.src = url;
+    iframe.style.display = 'block';
+    
+    // Update input with cleaned URL
+    input.value = url;
+    
+    console.log('✅ Custom Jitsi loaded successfully');
 };
 
-window.useJitsiIframe = function() {
-    console.log('📺 Switching to iframe mode');
-    loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
+window.clearJitsi = function() {
+    const iframe = document.getElementById('custom-jitsi-iframe');
+    const welcome = document.getElementById('jitsi-welcome');
+    
+    if (iframe) {
+        iframe.src = '';
+        iframe.style.display = 'none';
+    }
+    
+    if (welcome) {
+        welcome.style.display = 'block';
+    }
+    
+    console.log('🧹 Jitsi cleared');
+};
+
+window.openInNewTab = function() {
+    const input = document.getElementById('jitsi-url-input');
+    
+    if (input && input.value.trim()) {
+        let url = input.value.trim();
+        
+        // Add protocol if missing
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        
+        window.open(url, '_blank');
+        console.log(`🔗 Opened Jitsi in new tab: ${url}`);
+    } else {
+        alert('❌ Bitte gib erst einen Jitsi-Link ein');
+    }
 };
 
 // Load Jitsi using iframe fallback - GLOBAL function
@@ -252,12 +302,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Functions already defined globally above
 
-    // Initialize Jitsi Meet after all elements are confirmed to exist
-    // Start with iframe immediately for reliability
-    setTimeout(() => {
-        console.log('🚀 Starting with Jitsi iframe for immediate loading');
-        loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
-    }, 1000);
+    // Initialize custom Jitsi system - much simpler!
+    console.log('🎥 Custom Jitsi system ready - enter your own link above');
+    
+    // Handle Enter key in input field
+    const jitsiInput = document.getElementById('jitsi-url-input');
+    if (jitsiInput) {
+        jitsiInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadCustomJitsi();
+            }
+        });
+    }
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
