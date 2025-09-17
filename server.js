@@ -316,10 +316,18 @@ io.on('connection', (socket) => {
   // Handle video frame sharing
   socket.on('videoFrame', (data) => {
     const player = players.get(socket.id);
-    if (!player) return;
+    if (!player) {
+      console.log('❌ Video frame from unknown player:', socket.id);
+      return;
+    }
     
     const lobby = lobbies.get(player.lobbyId);
-    if (!lobby) return;
+    if (!lobby) {
+      console.log('❌ Video frame for unknown lobby:', player.lobbyId);
+      return;
+    }
+    
+    console.log(`📹 Broadcasting video frame from ${player.name} to lobby ${player.lobbyId}`);
     
     // Broadcast video frame to all other players in the lobby
     socket.to(player.lobbyId).emit('videoFrame', {
@@ -328,6 +336,8 @@ io.on('connection', (socket) => {
       image: data.image,
       timestamp: data.timestamp
     });
+    
+    console.log(`📤 Video frame sent to ${lobby.players.length} players in lobby`);
   });
 
   // Start game
