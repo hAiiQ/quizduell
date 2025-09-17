@@ -23,12 +23,16 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(checkAndInitializeJitsi, 500);
         } else {
             console.error('❌ JitsiMeetExternalAPI failed to load after maximum attempts');
+            // Fallback: Load Jitsi in iframe
+            const roomName = `jeopardy-lobby-${lobbyId}`;
             document.querySelector('#jitsi-meet').innerHTML = `
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
-                    <div>❌ Video-Chat API konnte nicht geladen werden</div>
-                    <div style="font-size: 12px; margin-top: 10px;">Nutze den direkten Link unten</div>
-                </div>
+                <iframe 
+                    src="https://meet.jit.si/${roomName}" 
+                    style="width: 100%; height: 100%; border: none; border-radius: 10px;"
+                    allow="camera; microphone; fullscreen; display-capture">
+                </iframe>
             `;
+            console.log('✅ Jitsi loaded via iframe fallback');
         }
     }
     
@@ -61,10 +65,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const roomName = `jeopardy-lobby-${lobbyId}`;
         document.getElementById('jitsiRoomName').textContent = roomName;
         
-        // Update direct link
+        // Update direct link - WICHTIG: Muss vor der Jitsi Initialisierung stehen
         const directLink = document.getElementById('directJitsiLink');
         if (directLink) {
             directLink.href = `https://meet.jit.si/${roomName}`;
+            directLink.textContent = 'Video-Chat direkt bei Jitsi öffnen';
+            console.log(`🔗 Direct Jitsi link updated: https://meet.jit.si/${roomName}`);
         }
         
         console.log(`🎥 Initializing Jitsi Meet room: ${roomName}`);
@@ -235,6 +241,19 @@ document.addEventListener('DOMContentLoaded', function() {
             startGameBtn.disabled = data.players.length === 0;
         }
     }
+
+    // Force load Jitsi Meet function (global for HTML onclick)
+    window.forceLoadJitsi = function() {
+        console.log('🔄 Force loading Jitsi Meet...');
+        document.querySelector('#jitsi-meet').innerHTML = `
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
+                <div>🔄 Erzwinge Video-Chat Laden...</div>
+            </div>
+        `;
+        setTimeout(() => {
+            initializeJitsi();
+        }, 500);
+    };
 
     // Video display now handled by Jitsi Meet - no custom functions needed
     // Handle page unload

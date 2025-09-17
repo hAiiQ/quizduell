@@ -35,12 +35,16 @@
                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
                             <div>📹 Video-Konferenz wird geladen...</div>
                             <div style="font-size: 14px; margin-top: 10px;">Automatische Raum-Erstellung: <span id="jitsiRoomName"></span></div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="forceLoadJitsi()" style="padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Jetzt laden</button>
+                            </div>
                         </div>
                     </div>
                     <div class="jitsi-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
                         Powered by Jitsi Meet - Sicherer Video-Chat<br>
                         <div style="margin-top: 5px;">
-                            Alternative: <a id="directJitsiLink" href="#" target="_blank" style="color: #0066cc;">Direkt bei Jitsi öffnen</a>
+                            <strong>Problem mit Video?</strong><br>
+                        <a id="directJitsiLink" href="#" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📹 Video-Chat in neuem Tab öffnen</a>
                         </div>
                     </div>
                 </div>
