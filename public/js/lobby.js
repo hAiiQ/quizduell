@@ -5,6 +5,75 @@ let jitsiApi = null;
 let jitsiLoadAttempts = 0;
 let jitsiMode = 'api'; // 'api' or 'iframe'
 
+// Global functions for HTML buttons - MUST be outside DOMContentLoaded
+window.retryJitsiLoad = function() {
+    console.log('🔄 Retrying Jitsi load...');
+    jitsiLoadAttempts++;
+    
+    const loadingIndicator = document.getElementById('jitsi-loading');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+        loadingIndicator.innerHTML = `
+            <div>🔄 Erneuter Ladeversuch (${jitsiLoadAttempts})...</div>
+            <div style="font-size: 14px; margin-top: 10px;">Raum: jeopardy-lobby-${lobbyId}</div>
+            <div style="margin-top: 15px;">
+                <div class="loading-spinner" style="border: 3px solid #555; border-top: 3px solid #0066cc; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        `;
+    }
+    
+    if (window.jitsiApiLoaded) {
+        loadJitsiWithAPI(`jeopardy-lobby-${lobbyId}`);
+    } else {
+        loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
+    }
+};
+
+window.useJitsiIframe = function() {
+    console.log('📺 Switching to iframe mode');
+    loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
+};
+
+// Load Jitsi using iframe fallback - GLOBAL function
+window.loadJitsiWithIframe = function(roomName) {
+    console.log('📺 Loading Jitsi via iframe fallback');
+    jitsiMode = 'iframe';
+    
+    const iframe = document.getElementById('jitsi-iframe-fallback');
+    const mainContainer = document.getElementById('jitsi-meet');
+    
+    if (iframe && mainContainer) {
+        // Clear any existing content
+        mainContainer.innerHTML = '';
+        
+        // Set up the iframe
+        iframe.src = `https://meet.jit.si/${roomName}`;
+        iframe.style.display = 'block';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '10px';
+        
+        // Add iframe to container
+        mainContainer.appendChild(iframe);
+        
+        setTimeout(() => {
+            hideJitsiLoading();
+            console.log('✅ Jitsi iframe loaded');
+        }, 2000);
+    } else {
+        console.error('❌ Iframe elements not found');
+    }
+};
+
+// Hide loading indicator - GLOBAL function  
+window.hideJitsiLoading = function() {
+    const loadingIndicator = document.getElementById('jitsi-loading');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
     lobbyId = window.location.pathname.split('/').pop();
@@ -181,37 +250,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Global functions for buttons (called from HTML)
-    window.retryJitsiLoad = function() {
-        console.log('🔄 Retrying Jitsi load...');
-        jitsiLoadAttempts++;
-        
-        const loadingIndicator = document.getElementById('jitsi-loading');
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'block';
-            loadingIndicator.innerHTML = `
-                <div>🔄 Erneuter Ladeversuch (${jitsiLoadAttempts})...</div>
-                <div style="font-size: 14px; margin-top: 10px;">Raum: ${document.getElementById('jitsiRoomName').textContent}</div>
-                <div style="margin-top: 15px;">
-                    <div class="loading-spinner" style="border: 3px solid #555; border-top: 3px solid #0066cc; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-                </div>
-            `;
-        }
-        
-        if (window.jitsiApiLoaded) {
-            loadJitsiWithAPI(`jeopardy-lobby-${lobbyId}`);
-        } else {
-            loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
-        }
-    };
-    
-    window.useJitsiIframe = function() {
-        console.log('📺 Switching to iframe mode');
-        loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
-    };
+    // Functions already defined globally above
 
     // Initialize Jitsi Meet after all elements are confirmed to exist
-    initializeJitsiMeet();
+    // Start with iframe immediately for reliability
+    setTimeout(() => {
+        console.log('🚀 Starting with Jitsi iframe for immediate loading');
+        loadJitsiWithIframe(`jeopardy-lobby-${lobbyId}`);
+    }, 1000);
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
