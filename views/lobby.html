@@ -4,40 +4,116 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeopardy - Lobby</title>
-    <link rel="stylesheet" href="/css/style.css?v=1.2">
+    <link rel="stylesheet" href="/css/style.css?v=1.3">
     <style>
-        /* Additional styles for individual cameras */
-        .camera-btn, .audio-btn {
+        /* Jitsi Individual Tiles Styling */
+        .jitsi-tiles-container {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .jitsi-individual-tiles {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+            background: #1a1a1a;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Custom Jitsi styling for individual tiles */
+        .jitsi-individual-tiles iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+        
+        /* Override Jitsi default styles for tile view */
+        .jitsi-individual-tiles .jitsi-watermark {
+            display: none !important;
+        }
+        
+        .jitsi-controls-panel {
+            background: #333;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .jitsi-control-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
             transition: background-color 0.3s;
         }
         
-        .camera-btn:hover {
-            background: #0052a3 !important;
+        .jitsi-control-btn:hover {
+            background: #0052a3;
         }
         
-        .audio-btn:hover {
-            background: #1e7e34 !important;
+        .jitsi-control-btn.active {
+            background: #28a745;
         }
         
-        .camera-btn.active {
-            background: #28a745 !important;
+        .jitsi-control-btn.muted {
+            background: #dc3545;
         }
         
-        .audio-btn.muted {
-            background: #dc3545 !important;
+        .jitsi-info-panel {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            color: #ccc;
+            font-size: 13px;
         }
         
-        .video-card {
-            transition: transform 0.2s, box-shadow 0.2s;
+        .jitsi-status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
         }
         
-        .video-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        .jitsi-status-connected {
+            background: #4CAF50;
+            animation: pulse 2s infinite;
         }
         
-        .players-videos-grid {
-            min-height: 120px;
+        .jitsi-status-connecting {
+            background: #FFC107;
+            animation: pulse 1s infinite;
+        }
+        
+        .jitsi-status-disconnected {
+            background: #F44336;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .participants-counter {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
         }
     </style>
 </head>
@@ -63,51 +139,64 @@
                 </div>
             </div>
             
+            <!-- Jitsi Individual Tiles Section -->
             <div class="webcam-section">
-                <h3>🎥 Spieler Kameras</h3>
+                <h3>🎥 Video Chat - Individuelle Kameras</h3>
                 
-                <!-- Admin Camera -->
-                <div class="admin-video-container" style="margin-bottom: 20px;">
-                    <div class="video-card admin-video-card" style="background: #2a2a2a; padding: 15px; border-radius: 10px; border: 2px solid #ffd700;">
-                        <div class="player-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span id="admin-video-name" class="player-name" style="color: #ffd700; font-weight: bold; font-size: 14px;">👑 Admin</span>
-                            <div class="camera-controls" style="display: flex; gap: 5px;">
-                                <button id="admin-toggle-camera" class="camera-btn" onclick="toggleCamera('admin')" style="background: #0066cc; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;" title="Kamera ein/aus">📹</button>
-                                <button id="admin-toggle-audio" class="audio-btn" onclick="toggleAudio('admin')" style="background: #28a745; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;" title="Mikrofon ein/aus">🎤</button>
-                            </div>
+                <div class="jitsi-tiles-container">
+                    <div class="jitsi-status-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 8px 12px; background: #333; border-radius: 6px;">
+                        <div>
+                            <span id="jitsi-status-indicator" class="jitsi-status-indicator jitsi-status-connecting"></span>
+                            <span id="jitsi-status-text" style="color: #ccc; font-size: 12px;">Verbinde...</span>
+                            <span id="participants-count" class="participants-counter">0</span>
                         </div>
-                        <div class="video-container" style="position: relative; background: #1a1a1a; border-radius: 8px; height: 120px; overflow: hidden;">
-                            <video id="admin-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000; display: none;"></video>
-                            <div id="admin-video-placeholder" class="video-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #888;">
-                                <div style="text-align: center;">
-                                    <div style="font-size: 20px; margin-bottom: 5px;">📹</div>
-                                    <div style="font-size: 12px;">Kamera aktivieren</div>
-                                </div>
+                        <div>
+                            <span style="color: #888; font-size: 11px;">Raum: </span>
+                            <span id="jitsi-room-name" style="color: #4CAF50; font-size: 12px; font-family: monospace;">jeopardy-lobby-<span id="lobby-code-display"></span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Jitsi Container for Individual Tiles -->
+                    <div id="jitsi-individual-container" class="jitsi-individual-tiles">
+                        <!-- Jitsi will be embedded here with tile view -->
+                        <div id="jitsi-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 10px;">🎥</div>
+                            <div style="font-size: 16px; margin-bottom: 8px;">Video-Chat wird geladen...</div>
+                            <div style="font-size: 12px; color: #888;">Jitsi Meet - Individuelle Kameras</div>
+                            <div style="margin-top: 10px;">
+                                <div class="loading-spinner" style="border: 2px solid #333; border-top: 2px solid #0066cc; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Players Cameras Grid -->
-                <div class="players-video-container">
-                    <h4 style="color: #ccc; margin-bottom: 10px; font-size: 16px;">Spieler Kameras</h4>
-                    <div id="players-videos" class="players-videos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                        <!-- Player video cards will be added dynamically -->
-                        <div class="empty-player-slot" style="background: #1a1a1a; border: 2px dashed #555; border-radius: 10px; padding: 20px; text-align: center; color: #666;">
-                            <div style="font-size: 24px; margin-bottom: 8px;">👤</div>
-                            <div style="font-size: 12px;">Warten auf Spieler...</div>
-                        </div>
+                    
+                    <!-- Jitsi Controls -->
+                    <div class="jitsi-controls-panel">
+                        <button id="jitsi-toggle-camera" class="jitsi-control-btn" onclick="toggleJitsiCamera()" title="Kamera ein/aus">
+                            📹 Kamera
+                        </button>
+                        <button id="jitsi-toggle-audio" class="jitsi-control-btn" onclick="toggleJitsiAudio()" title="Mikrofon ein/aus">
+                            🎤 Mikrofon
+                        </button>
+                        <button id="jitsi-tile-view" class="jitsi-control-btn active" onclick="enableJitsiTileView()" title="Kachel-Ansicht">
+                            🔲 Kacheln
+                        </button>
+                        <button id="jitsi-fullscreen" class="jitsi-control-btn" onclick="toggleJitsiFullscreen()" title="Vollbild">
+                            ⛶ Vollbild
+                        </button>
                     </div>
                 </div>
-
-                <!-- Camera Info -->
-                <div class="camera-info" style="margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 10px; color: #ccc; font-size: 13px;">
-                    <div style="margin-bottom: 10px; color: #4CAF50; font-weight: bold; font-size: 14px;">💡 Kamera-System Hinweise:</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 12px; color: #bbb;">
-                        <div>📹 Kamera aktivieren/deaktivieren</div>
-                        <div>🎤 Mikrofon steuern</div>
-                        <div>👥 Lobby: Nur eigene Kamera sichtbar</div>
-                        <div>🎮 Spiel: Alle Kameras werden angezeigt</div>
+                
+                <!-- Jitsi Info Panel -->
+                <div class="jitsi-info-panel">
+                    <div style="margin-bottom: 8px; color: #4CAF50; font-weight: bold;">💡 Jitsi Meet - Individuelle Kameras:</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; font-size: 12px; color: #bbb;">
+                        <div>📹 Jeder Spieler in separater Kachel</div>
+                        <div>🎤 Individuelle Audio/Video-Kontrolle</div>
+                        <div>🔲 Automatische Kachel-Ansicht aktiv</div>
+                        <div>🌐 Stabile Jitsi-Server-Verbindung</div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 11px; color: #888;">
+                        <strong>Tipp:</strong> Kachel-Ansicht zeigt alle Teilnehmer individuell - perfekt für das Jeopardy Spiel!
                     </div>
                 </div>
             </div>
@@ -125,248 +214,273 @@
     <!-- Include Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     
-    <!-- Individual Camera JavaScript -->
+    <!-- Jitsi Meet API -->
+    <script src="https://meet.jit.si/external_api.js"></script>
+    
+    <!-- Jitsi Individual Tiles JavaScript -->
     <script>
-        // Global variables for camera management
-        let localStream = null;
-        let isCameraActive = false;
-        let isAudioActive = false;
-        let playerVideoStreams = new Map(); // Store other players' streams
+        // Jitsi API instance
+        let jitsiApi = null;
+        let jitsiRoomName = '';
+        let isJitsiReady = false;
+        let participantCount = 0;
         
-        // Initialize camera system when page loads
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('🎥 Individual camera system initialized');
-        });
-        
-        // Toggle camera for a player
-        async function toggleCamera(playerId) {
-            console.log(`📹 Toggle camera for ${playerId}`);
+        // Jitsi configuration for individual tiles
+        const jitsiConfig = {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            enableWelcomePage: false,
+            enableUserRolesBasedOnToken: false,
+            prejoinPageEnabled: false,
+            disableInviteFunctions: true,
+            doNotStoreRoom: true,
+            enableNoisyMicDetection: false,
             
-            if (playerId === 'admin' || playerId === getCurrentPlayerId()) {
-                // This is the current user's camera
-                if (!isCameraActive) {
-                    await startCamera(playerId);
-                } else {
-                    stopCamera(playerId);
-                }
-            }
-        }
-        
-        // Toggle audio for a player
-        function toggleAudio(playerId) {
-            console.log(`🎤 Toggle audio for ${playerId}`);
+            // Force tile view for individual cameras
+            defaultLocalDisplayName: 'Du',
+            enableLayerSuspension: true,
             
-            if (playerId === 'admin' || playerId === getCurrentPlayerId()) {
-                // This is the current user's audio
-                if (localStream) {
-                    const audioTracks = localStream.getAudioTracks();
-                    if (audioTracks.length > 0) {
-                        const isEnabled = !audioTracks[0].enabled;
-                        audioTracks[0].enabled = isEnabled;
-                        isAudioActive = isEnabled;
-                        
-                        // Update button visual state
-                        const audioBtn = document.getElementById(`${playerId}-toggle-audio`);
-                        if (audioBtn) {
-                            audioBtn.classList.toggle('muted', !isEnabled);
-                            audioBtn.textContent = isEnabled ? '🎤' : '🔇';
-                        }
-                        
-                        console.log(`🎤 Audio ${isEnabled ? 'enabled' : 'muted'} for ${playerId}`);
-                    }
-                }
+            // UI Configuration for tile view
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'settings', 'videoquality'
+                ],
+                SETTINGS_SECTIONS: ['devices', 'moderator'],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                SHOW_BRAND_WATERMARK: false,
+                BRAND_WATERMARK_LINK: '',
+                SHOW_POWERED_BY: false,
+                GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
+                DISPLAY_WELCOME_PAGE_CONTENT: false,
+                APP_NAME: 'Jeopardy Video Chat',
+                DEFAULT_BACKGROUND: '#1a1a1a',
+                DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+                DISABLE_FOCUS_INDICATOR: false,
+                DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+                DISABLE_PRESENCE_STATUS: false,
+                HIDE_INVITE_MORE_HEADER: true,
+                INITIAL_TOOLBAR_TIMEOUT: 20000,
+                TOOLBAR_TIMEOUT: 4000,
+                TILE_VIEW_MAX_COLUMNS: 4
+            },
+            
+            // Configure for best tile view experience
+            conferenceInfo: {
+                alwaysVisible: false,
+                autoHide: [
+                    'subject',
+                    'conference-timer',
+                    'participants-count',
+                    'e2ee',
+                    'transcribing',
+                    'video-quality'
+                ]
             }
-        }
+        };
         
-        // Start camera for current user
-        async function startCamera(playerId) {
+        // Initialize Jitsi when page loads
+        function initializeJitsiTiles() {
+            const lobbyCode = document.getElementById('lobbyId').textContent;
+            jitsiRoomName = `jeopardy-lobby-${lobbyCode}`;
+            
+            console.log(`🎥 Initializing Jitsi Individual Tiles for room: ${jitsiRoomName}`);
+            
+            // Update room name displays
+            const roomNameElement = document.getElementById('lobby-code-display');
+            if (roomNameElement) {
+                roomNameElement.textContent = lobbyCode;
+            }
+            
+            // Create Jitsi API instance
             try {
-                console.log(`🚀 Starting camera for ${playerId}`);
-                
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 320, height: 240 },
-                    audio: true
+                jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+                    roomName: jitsiRoomName,
+                    parentNode: document.getElementById('jitsi-individual-container'),
+                    width: '100%',
+                    height: '100%',
+                    configOverwrite: jitsiConfig,
+                    interfaceConfigOverwrite: jitsiConfig.interfaceConfigOverwrite,
+                    userInfo: {
+                        displayName: getPlayerDisplayName()
+                    }
                 });
                 
-                const videoElement = document.getElementById(`${playerId}-video`);
-                const placeholder = document.getElementById(`${playerId}-video-placeholder`);
-                const cameraBtn = document.getElementById(`${playerId}-toggle-camera`);
+                setupJitsiEventListeners();
                 
-                if (videoElement && placeholder) {
-                    videoElement.srcObject = localStream;
-                    videoElement.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    isCameraActive = true;
-                    isAudioActive = true;
-                    
-                    // Update button state
-                    if (cameraBtn) {
-                        cameraBtn.classList.add('active');
-                        cameraBtn.textContent = '📹';
-                    }
-                    
-                    console.log(`✅ Camera started for ${playerId}`);
-                    
-                    // Emit to other players that camera is active
-                    if (typeof socket !== 'undefined') {
-                        socket.emit('cameraStatusUpdate', {
-                            playerId: playerId,
-                            hasCamera: true,
-                            hasAudio: true
-                        });
-                    }
-                }
             } catch (error) {
-                console.error(`❌ Error starting camera for ${playerId}:`, error);
-                
-                // Show error message
-                const placeholder = document.getElementById(`${playerId}-video-placeholder`);
-                if (placeholder) {
-                    placeholder.innerHTML = `
-                        <div style="text-align: center;">
-                            <div style="font-size: 20px; margin-bottom: 5px; color: #dc3545;">❌</div>
-                            <div style="font-size: 11px; color: #dc3545;">Kamera nicht verfügbar</div>
-                            <div style="font-size: 10px; color: #888; margin-top: 5px;">Berechtigungen prüfen</div>
-                        </div>
-                    `;
-                }
-                
-                alert('Kamera konnte nicht gestartet werden. Bitte überprüfe deine Browser-Berechtigungen.');
+                console.error('❌ Error initializing Jitsi:', error);
+                showJitsiError('Jitsi konnte nicht geladen werden');
             }
         }
         
-        // Stop camera for current user
-        function stopCamera(playerId) {
-            console.log(`🛑 Stopping camera for ${playerId}`);
-            
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
-            const videoElement = document.getElementById(`${playerId}-video`);
-            const placeholder = document.getElementById(`${playerId}-video-placeholder`);
-            const cameraBtn = document.getElementById(`${playerId}-toggle-camera`);
-            
-            if (videoElement && placeholder) {
-                videoElement.style.display = 'none';
-                videoElement.srcObject = null;
-                placeholder.style.display = 'flex';
-                placeholder.innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; margin-bottom: 5px;">📹</div>
-                        <div style="font-size: 12px;">Kamera aktivieren</div>
-                    </div>
-                `;
-                isCameraActive = false;
-                isAudioActive = false;
+        // Setup Jitsi event listeners
+        function setupJitsiEventListeners() {
+            // Conference joined
+            jitsiApi.addEventListener('videoConferenceJoined', (event) => {
+                console.log('✅ Jitsi conference joined:', event);
+                isJitsiReady = true;
+                updateJitsiStatus('connected', 'Verbunden');
+                hideJitsiLoading();
                 
-                // Update button state
-                if (cameraBtn) {
-                    cameraBtn.classList.remove('active');
-                    cameraBtn.textContent = '📹';
-                }
-            }
+                // Force tile view after joining
+                setTimeout(() => {
+                    enableJitsiTileView();
+                }, 1000);
+            });
             
-            // Emit to other players that camera is inactive
-            if (typeof socket !== 'undefined') {
-                socket.emit('cameraStatusUpdate', {
-                    playerId: playerId,
-                    hasCamera: false,
-                    hasAudio: false
-                });
-            }
+            // Participant joined
+            jitsiApi.addEventListener('participantJoined', (event) => {
+                console.log('👤 Participant joined:', event);
+                participantCount++;
+                updateParticipantCount();
+                
+                // Ensure tile view is enabled
+                setTimeout(() => {
+                    enableJitsiTileView();
+                }, 500);
+            });
             
-            console.log(`✅ Camera stopped for ${playerId}`);
+            // Participant left
+            jitsiApi.addEventListener('participantLeft', (event) => {
+                console.log('👋 Participant left:', event);
+                participantCount = Math.max(0, participantCount - 1);
+                updateParticipantCount();
+            });
+            
+            // Ready to close
+            jitsiApi.addEventListener('readyToClose', () => {
+                console.log('🚪 Jitsi ready to close');
+                cleanupJitsi();
+            });
+            
+            // Error handling
+            jitsiApi.addEventListener('error', (event) => {
+                console.error('❌ Jitsi error:', event);
+                showJitsiError('Verbindungsfehler');
+            });
         }
         
-        // Get current player ID (will be implemented in main lobby.js)
-        function getCurrentPlayerId() {
-            // This will be integrated with the existing player system
+        // Jitsi control functions
+        function toggleJitsiCamera() {
+            if (jitsiApi && isJitsiReady) {
+                jitsiApi.executeCommand('toggleVideo');
+                
+                const btn = document.getElementById('jitsi-toggle-camera');
+                btn.classList.toggle('active');
+                console.log('📹 Toggled camera');
+            }
+        }
+        
+        function toggleJitsiAudio() {
+            if (jitsiApi && isJitsiReady) {
+                jitsiApi.executeCommand('toggleAudio');
+                
+                const btn = document.getElementById('jitsi-toggle-audio');
+                btn.classList.toggle('muted');
+                console.log('🎤 Toggled audio');
+            }
+        }
+        
+        function enableJitsiTileView() {
+            if (jitsiApi && isJitsiReady) {
+                jitsiApi.executeCommand('setTileView', true);
+                
+                const btn = document.getElementById('jitsi-tile-view');
+                btn.classList.add('active');
+                console.log('🔲 Enabled tile view');
+            }
+        }
+        
+        function toggleJitsiFullscreen() {
+            if (jitsiApi && isJitsiReady) {
+                jitsiApi.executeCommand('toggleFilmStrip');
+                console.log('⛶ Toggled fullscreen');
+            }
+        }
+        
+        // Helper functions
+        function getPlayerDisplayName() {
             const playerData = sessionStorage.getItem('playerData');
             if (playerData) {
                 const data = JSON.parse(playerData);
-                return data.isAdmin ? 'admin' : data.name;
+                return data.isAdmin ? `👑 ${data.name}` : `👤 ${data.name}`;
             }
-            return 'admin'; // fallback
+            return 'Spieler';
         }
         
-        // Add player video card
-        function addPlayerVideoCard(player, index) {
-            const playersVideos = document.getElementById('players-videos');
-            if (!playersVideos) return;
+        function updateJitsiStatus(status, text) {
+            const indicator = document.getElementById('jitsi-status-indicator');
+            const statusText = document.getElementById('jitsi-status-text');
             
-            // Remove empty slot if it exists
-            const emptySlot = playersVideos.querySelector('.empty-player-slot');
-            if (emptySlot && index === 0) {
-                emptySlot.remove();
+            if (indicator && statusText) {
+                indicator.className = `jitsi-status-indicator jitsi-status-${status}`;
+                statusText.textContent = text;
             }
-            
-            const playerId = `player${index + 1}`;
-            const videoCard = document.createElement('div');
-            videoCard.className = 'video-card player-video-card';
-            videoCard.id = `video-card-${playerId}`;
-            videoCard.style.cssText = 'background: #2a2a2a; padding: 12px; border-radius: 10px; border: 2px solid #007bff;';
-            
-            videoCard.innerHTML = `
-                <div class="player-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="player-name" style="color: #007bff; font-weight: bold; font-size: 13px;">👤 ${player.name}</span>
-                    <div class="camera-controls" style="display: flex; gap: 4px;">
-                        <button id="${playerId}-toggle-camera" class="camera-btn" onclick="toggleCamera('${playerId}')" style="background: #0066cc; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px;" title="Kamera ein/aus">📹</button>
-                        <button id="${playerId}-toggle-audio" class="audio-btn" onclick="toggleAudio('${playerId}')" style="background: #28a745; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px;" title="Mikrofon ein/aus">🎤</button>
-                    </div>
-                </div>
-                <div class="video-container" style="position: relative; background: #1a1a1a; border-radius: 6px; height: 100px; overflow: hidden;">
-                    <video id="${playerId}-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000; display: none;"></video>
-                    <div id="${playerId}-video-placeholder" class="video-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #888;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 16px; margin-bottom: 4px;">📹</div>
-                            <div style="font-size: 10px;">Warten auf Kamera...</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            playersVideos.appendChild(videoCard);
-            console.log(`📹 Added video card for ${player.name} (${playerId})`);
         }
         
-        // Remove player video card
-        function removePlayerVideoCard(playerName) {
-            const playersVideos = document.getElementById('players-videos');
-            if (!playersVideos) return;
-            
-            const videoCards = playersVideos.querySelectorAll('.player-video-card');
-            videoCards.forEach(card => {
-                const nameElement = card.querySelector('.player-name');
-                if (nameElement && nameElement.textContent.includes(playerName)) {
-                    card.remove();
-                    console.log(`🗑️ Removed video card for ${playerName}`);
-                }
-            });
-            
-            // Add empty slot if no players
-            if (playersVideos.children.length === 0) {
-                const emptySlot = document.createElement('div');
-                emptySlot.className = 'empty-player-slot';
-                emptySlot.style.cssText = 'background: #1a1a1a; border: 2px dashed #555; border-radius: 10px; padding: 20px; text-align: center; color: #666;';
-                emptySlot.innerHTML = `
-                    <div style="font-size: 24px; margin-bottom: 8px;">👤</div>
-                    <div style="font-size: 12px;">Warten auf Spieler...</div>
+        function updateParticipantCount() {
+            const countElement = document.getElementById('participants-count');
+            if (countElement) {
+                countElement.textContent = participantCount + 1; // +1 for self
+            }
+        }
+        
+        function hideJitsiLoading() {
+            const loading = document.getElementById('jitsi-loading');
+            if (loading) {
+                loading.style.display = 'none';
+            }
+        }
+        
+        function showJitsiError(message) {
+            const loading = document.getElementById('jitsi-loading');
+            if (loading) {
+                loading.innerHTML = `
+                    <div style="color: #dc3545; text-align: center;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">❌</div>
+                        <div style="font-size: 16px; margin-bottom: 8px;">Fehler</div>
+                        <div style="font-size: 12px;">${message}</div>
+                    </div>
                 `;
-                playersVideos.appendChild(emptySlot);
             }
+            updateJitsiStatus('disconnected', 'Fehler');
         }
         
-        // Clean up when leaving
-        window.addEventListener('beforeunload', function() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+        function cleanupJitsi() {
+            if (jitsiApi) {
+                try {
+                    jitsiApi.dispose();
+                } catch (error) {
+                    console.warn('Warning disposing Jitsi API:', error);
+                }
+                jitsiApi = null;
             }
+            isJitsiReady = false;
+            participantCount = 0;
+        }
+        
+        // CSS loading animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎥 Jitsi Individual Tiles system ready');
         });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', cleanupJitsi);
     </script>
     
     <!-- Main lobby logic -->
-    <script src="/js/lobby.js?v=1.2"></script>
+    <script src="/js/lobby.js?v=1.3"></script>
 </body>
 </html>

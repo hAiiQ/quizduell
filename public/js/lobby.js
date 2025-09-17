@@ -314,42 +314,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize custom Jitsi system - much simpler!
     console.log('🎥 Custom Jitsi system ready - enter your own link above');
     
-    // Initialize individual camera system
-    console.log('🎥 Individual camera system initialized');
+    // Initialize Jitsi Individual Tiles system
+    console.log('🎥 Jitsi Individual Tiles system initialized');
     
-    // Handle player leaving (remove their video card)
-    socket.on('playerLeft', function(data) {
-        if (data.playerName && typeof removePlayerVideoCard === 'function') {
-            removePlayerVideoCard(data.playerName);
+    // Initialize Jitsi after lobby is loaded
+    setTimeout(() => {
+        if (typeof initializeJitsiTiles === 'function') {
+            initializeJitsiTiles();
         }
-    });
-    
-    // Handle camera status updates from other players
-    socket.on('cameraStatusUpdate', function(data) {
-        console.log('📹 Camera status update:', data);
-        
-        const { playerId, hasCamera, hasAudio } = data;
-        const videoElement = document.getElementById(`${playerId}-video`);
-        const placeholder = document.getElementById(`${playerId}-video-placeholder`);
-        
-        if (placeholder) {
-            if (hasCamera) {
-                placeholder.innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; margin-bottom: 4px; color: #4CAF50;">📹</div>
-                        <div style="font-size: 10px; color: #4CAF50;">Kamera aktiv</div>
-                    </div>
-                `;
-            } else {
-                placeholder.innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; margin-bottom: 4px;">📹</div>
-                        <div style="font-size: 10px;">Kamera aus</div>
-                    </div>
-                `;
-            }
-        }
-    });
+    }, 1000);
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
@@ -359,9 +332,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Leave lobby
     leaveLobbyBtn.addEventListener('click', function() {
         if (confirm('Möchtest du die Lobby wirklich verlassen?')) {
-            // Clean up camera streams
-            if (typeof localStream !== 'undefined' && localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+            // Clean up Jitsi
+            if (typeof cleanupJitsi === 'function') {
+                cleanupJitsi();
             }
             
             sessionStorage.removeItem('playerData');

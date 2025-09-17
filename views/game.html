@@ -64,11 +64,20 @@
             </div>
         </div>
 
-        <!-- Individual Player Cameras -->
-        <div class="players-cameras-section">
-            <h4 style="color: #ccc; margin-bottom: 10px; font-size: 14px;">📹 Spieler Kameras</h4>
-            <div class="game-cameras-grid" id="gameCamerasGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 15px;">
-                <!-- Individual camera cards will be added here -->
+        <!-- Jitsi Tiles in Game -->
+        <div class="game-jitsi-section">
+            <h4 style="color: #ccc; margin-bottom: 8px; font-size: 13px;">📹 Spieler Kameras</h4>
+            <div id="game-jitsi-container" style="width: 100%; height: 200px; background: #1a1a1a; border-radius: 8px; overflow: hidden; border: 2px solid #333;">
+                <!-- Jitsi will be embedded here in compact mode -->
+                <div id="game-jitsi-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
+                    <div>
+                        <div style="font-size: 16px; margin-bottom: 5px;">📹</div>
+                        <div style="font-size: 11px;">Kameras laden...</div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 5px;">
+                <button id="game-toggle-jitsi" onclick="toggleGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;">📹 Ein/Aus</button>
             </div>
         </div>
 
@@ -90,6 +99,17 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <!-- Jitsi Meet API -->
+    <script src="https://meet.jit.si/external_api.js"></script>
     <script src="/js/game.js"></script>
+    
+    <!-- Game Jitsi cleanup -->
+    <script>
+        window.addEventListener('beforeunload', function() {
+            if (typeof cleanupGameJitsi === 'function') {
+                cleanupGameJitsi();
+            }
+        });
+    </script>
 </body>
 </html>

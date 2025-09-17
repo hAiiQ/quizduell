@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Lobby</title>
+    <link rel="stylesheet" href="/css/style.css?v=1.2">
+    <style>
+        /* Additional styles for individual cameras */
+        .camera-btn, .audio-btn {
+            transition: background-color 0.3s;
+        }
+        
+        .camera-btn:hover {
+            background: #0052a3 !important;
+        }
+        
+        .audio-btn:hover {
+            background: #1e7e34 !important;
+        }
+        
+        .camera-btn.active {
+            background: #28a745 !important;
+        }
+        
+        .audio-btn.muted {
+            background: #dc3545 !important;
+        }
+        
+        .video-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .players-videos-grid {
+            min-height: 120px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="lobby-screen">
+            <h1>Lobby <span id="lobbyId"></span></h1>
+            
+            <div class="lobby-info">
+                <div class="admin-section">
+                    <h3>Admin</h3>
+                    <div id="adminInfo" class="player-card admin-card">
+                        <span class="player-name"></span>
+                        <span class="admin-badge">ADMIN</span>
+                    </div>
+                </div>
+                
+                <div class="players-section">
+                    <h3>Spieler (<span id="playerCount">0</span>/4)</h3>
+                    <div id="playersList" class="players-list">
+                        <!-- Players will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="webcam-section">
+                <h3>🎥 Spieler Kameras</h3>
+                
+                <!-- Admin Camera -->
+                <div class="admin-video-container" style="margin-bottom: 20px;">
+                    <div class="video-card admin-video-card" style="background: #2a2a2a; padding: 15px; border-radius: 10px; border: 2px solid #ffd700;">
+                        <div class="player-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span id="admin-video-name" class="player-name" style="color: #ffd700; font-weight: bold; font-size: 14px;">👑 Admin</span>
+                            <div class="camera-controls" style="display: flex; gap: 5px;">
+                                <button id="admin-toggle-camera" class="camera-btn" onclick="toggleCamera('admin')" style="background: #0066cc; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;" title="Kamera ein/aus">📹</button>
+                                <button id="admin-toggle-audio" class="audio-btn" onclick="toggleAudio('admin')" style="background: #28a745; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;" title="Mikrofon ein/aus">🎤</button>
+                            </div>
+                        </div>
+                        <div class="video-container" style="position: relative; background: #1a1a1a; border-radius: 8px; height: 120px; overflow: hidden;">
+                            <video id="admin-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000; display: none;"></video>
+                            <div id="admin-video-placeholder" class="video-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #888;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 20px; margin-bottom: 5px;">📹</div>
+                                    <div style="font-size: 12px;">Kamera aktivieren</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Players Cameras Grid -->
+                <div class="players-video-container">
+                    <h4 style="color: #ccc; margin-bottom: 10px; font-size: 16px;">Spieler Kameras</h4>
+                    <div id="players-videos" class="players-videos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                        <!-- Player video cards will be added dynamically -->
+                        <div class="empty-player-slot" style="background: #1a1a1a; border: 2px dashed #555; border-radius: 10px; padding: 20px; text-align: center; color: #666;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">👤</div>
+                            <div style="font-size: 12px;">Warten auf Spieler...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Info -->
+                <div class="camera-info" style="margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 10px; color: #ccc; font-size: 13px;">
+                    <div style="margin-bottom: 10px; color: #4CAF50; font-weight: bold; font-size: 14px;">💡 Kamera-System Hinweise:</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 12px; color: #bbb;">
+                        <div>📹 Kamera aktivieren/deaktivieren</div>
+                        <div>🎤 Mikrofon steuern</div>
+                        <div>👥 Lobby: Nur eigene Kamera sichtbar</div>
+                        <div>🎮 Spiel: Alle Kameras werden angezeigt</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lobby-actions" id="adminActions" style="display: none;">
+                <button id="startGameBtn" class="primary-btn">Spiel starten</button>
+            </div>
+            
+            <div class="lobby-actions">
+                <button id="leaveLobbyBtn" class="secondary-btn">Lobby verlassen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Individual Camera JavaScript -->
+    <script>
+        // Global variables for camera management
+        let localStream = null;
+        let isCameraActive = false;
+        let isAudioActive = false;
+        let playerVideoStreams = new Map(); // Store other players' streams
+        
+        // Initialize camera system when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🎥 Individual camera system initialized');
+        });
+        
+        // Toggle camera for a player
+        async function toggleCamera(playerId) {
+            console.log(`📹 Toggle camera for ${playerId}`);
+            
+            if (playerId === 'admin' || playerId === getCurrentPlayerId()) {
+                // This is the current user's camera
+                if (!isCameraActive) {
+                    await startCamera(playerId);
+                } else {
+                    stopCamera(playerId);
+                }
+            }
+        }
+        
+        // Toggle audio for a player
+        function toggleAudio(playerId) {
+            console.log(`🎤 Toggle audio for ${playerId}`);
+            
+            if (playerId === 'admin' || playerId === getCurrentPlayerId()) {
+                // This is the current user's audio
+                if (localStream) {
+                    const audioTracks = localStream.getAudioTracks();
+                    if (audioTracks.length > 0) {
+                        const isEnabled = !audioTracks[0].enabled;
+                        audioTracks[0].enabled = isEnabled;
+                        isAudioActive = isEnabled;
+                        
+                        // Update button visual state
+                        const audioBtn = document.getElementById(`${playerId}-toggle-audio`);
+                        if (audioBtn) {
+                            audioBtn.classList.toggle('muted', !isEnabled);
+                            audioBtn.textContent = isEnabled ? '🎤' : '🔇';
+                        }
+                        
+                        console.log(`🎤 Audio ${isEnabled ? 'enabled' : 'muted'} for ${playerId}`);
+                    }
+                }
+            }
+        }
+        
+        // Start camera for current user
+        async function startCamera(playerId) {
+            try {
+                console.log(`🚀 Starting camera for ${playerId}`);
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 240 },
+                    audio: true
+                });
+                
+                const videoElement = document.getElementById(`${playerId}-video`);
+                const placeholder = document.getElementById(`${playerId}-video-placeholder`);
+                const cameraBtn = document.getElementById(`${playerId}-toggle-camera`);
+                
+                if (videoElement && placeholder) {
+                    videoElement.srcObject = localStream;
+                    videoElement.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    isCameraActive = true;
+                    isAudioActive = true;
+                    
+                    // Update button state
+                    if (cameraBtn) {
+                        cameraBtn.classList.add('active');
+                        cameraBtn.textContent = '📹';
+                    }
+                    
+                    console.log(`✅ Camera started for ${playerId}`);
+                    
+                    // Emit to other players that camera is active
+                    if (typeof socket !== 'undefined') {
+                        socket.emit('cameraStatusUpdate', {
+                            playerId: playerId,
+                            hasCamera: true,
+                            hasAudio: true
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Error starting camera for ${playerId}:`, error);
+                
+                // Show error message
+                const placeholder = document.getElementById(`${playerId}-video-placeholder`);
+                if (placeholder) {
+                    placeholder.innerHTML = `
+                        <div style="text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 5px; color: #dc3545;">❌</div>
+                            <div style="font-size: 11px; color: #dc3545;">Kamera nicht verfügbar</div>
+                            <div style="font-size: 10px; color: #888; margin-top: 5px;">Berechtigungen prüfen</div>
+                        </div>
+                    `;
+                }
+                
+                alert('Kamera konnte nicht gestartet werden. Bitte überprüfe deine Browser-Berechtigungen.');
+            }
+        }
+        
+        // Stop camera for current user
+        function stopCamera(playerId) {
+            console.log(`🛑 Stopping camera for ${playerId}`);
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            const videoElement = document.getElementById(`${playerId}-video`);
+            const placeholder = document.getElementById(`${playerId}-video-placeholder`);
+            const cameraBtn = document.getElementById(`${playerId}-toggle-camera`);
+            
+            if (videoElement && placeholder) {
+                videoElement.style.display = 'none';
+                videoElement.srcObject = null;
+                placeholder.style.display = 'flex';
+                placeholder.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">📹</div>
+                        <div style="font-size: 12px;">Kamera aktivieren</div>
+                    </div>
+                `;
+                isCameraActive = false;
+                isAudioActive = false;
+                
+                // Update button state
+                if (cameraBtn) {
+                    cameraBtn.classList.remove('active');
+                    cameraBtn.textContent = '📹';
+                }
+            }
+            
+            // Emit to other players that camera is inactive
+            if (typeof socket !== 'undefined') {
+                socket.emit('cameraStatusUpdate', {
+                    playerId: playerId,
+                    hasCamera: false,
+                    hasAudio: false
+                });
+            }
+            
+            console.log(`✅ Camera stopped for ${playerId}`);
+        }
+        
+        // Get current player ID (will be implemented in main lobby.js)
+        function getCurrentPlayerId() {
+            // This will be integrated with the existing player system
+            const playerData = sessionStorage.getItem('playerData');
+            if (playerData) {
+                const data = JSON.parse(playerData);
+                return data.isAdmin ? 'admin' : data.name;
+            }
+            return 'admin'; // fallback
+        }
+        
+        // Add player video card
+        function addPlayerVideoCard(player, index) {
+            const playersVideos = document.getElementById('players-videos');
+            if (!playersVideos) return;
+            
+            // Remove empty slot if it exists
+            const emptySlot = playersVideos.querySelector('.empty-player-slot');
+            if (emptySlot && index === 0) {
+                emptySlot.remove();
+            }
+            
+            const playerId = `player${index + 1}`;
+            const videoCard = document.createElement('div');
+            videoCard.className = 'video-card player-video-card';
+            videoCard.id = `video-card-${playerId}`;
+            videoCard.style.cssText = 'background: #2a2a2a; padding: 12px; border-radius: 10px; border: 2px solid #007bff;';
+            
+            videoCard.innerHTML = `
+                <div class="player-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span class="player-name" style="color: #007bff; font-weight: bold; font-size: 13px;">👤 ${player.name}</span>
+                    <div class="camera-controls" style="display: flex; gap: 4px;">
+                        <button id="${playerId}-toggle-camera" class="camera-btn" onclick="toggleCamera('${playerId}')" style="background: #0066cc; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px;" title="Kamera ein/aus">📹</button>
+                        <button id="${playerId}-toggle-audio" class="audio-btn" onclick="toggleAudio('${playerId}')" style="background: #28a745; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px;" title="Mikrofon ein/aus">🎤</button>
+                    </div>
+                </div>
+                <div class="video-container" style="position: relative; background: #1a1a1a; border-radius: 6px; height: 100px; overflow: hidden;">
+                    <video id="${playerId}-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000; display: none;"></video>
+                    <div id="${playerId}-video-placeholder" class="video-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #888;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 16px; margin-bottom: 4px;">📹</div>
+                            <div style="font-size: 10px;">Warten auf Kamera...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            playersVideos.appendChild(videoCard);
+            console.log(`📹 Added video card for ${player.name} (${playerId})`);
+        }
+        
+        // Remove player video card
+        function removePlayerVideoCard(playerName) {
+            const playersVideos = document.getElementById('players-videos');
+            if (!playersVideos) return;
+            
+            const videoCards = playersVideos.querySelectorAll('.player-video-card');
+            videoCards.forEach(card => {
+                const nameElement = card.querySelector('.player-name');
+                if (nameElement && nameElement.textContent.includes(playerName)) {
+                    card.remove();
+                    console.log(`🗑️ Removed video card for ${playerName}`);
+                }
+            });
+            
+            // Add empty slot if no players
+            if (playersVideos.children.length === 0) {
+                const emptySlot = document.createElement('div');
+                emptySlot.className = 'empty-player-slot';
+                emptySlot.style.cssText = 'background: #1a1a1a; border: 2px dashed #555; border-radius: 10px; padding: 20px; text-align: center; color: #666;';
+                emptySlot.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 8px;">👤</div>
+                    <div style="font-size: 12px;">Warten auf Spieler...</div>
+                `;
+                playersVideos.appendChild(emptySlot);
+            }
+        }
+        
+        // Clean up when leaving
+        window.addEventListener('beforeunload', function() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+    
+    <!-- Main lobby logic -->
+    <script src="/js/lobby.js?v=1.2"></script>
+</body>
+</html>

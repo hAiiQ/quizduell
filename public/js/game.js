@@ -6,40 +6,135 @@ let currentQuestions = {};
 let localStream = null;
 let playerStreams = new Map();
 
-// Camera system variables (matching lobby system)
-let isCameraActive = false;
-let isAudioActive = false;
+// Jitsi system variables for game
+let gameJitsiApi = null;
+let gameJitsiVisible = true;
 
-// Initialize game cameras
-function initializeGameCameras() {
-    console.log('🎥 Initializing game cameras system');
+// Initialize game Jitsi
+function initializeGameJitsi() {
+    console.log('🎥 Initializing Jitsi for game view');
     
     const gameData = JSON.parse(sessionStorage.getItem('gameData') || '{}');
     const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
     
-    if (!gameData.admin || !gameData.players) {
-        console.warn('⚠️ Game data incomplete, skipping camera initialization');
+    if (!lobbyId) {
+        console.warn('⚠️ No lobby ID for Jitsi initialization');
         return;
     }
     
-    const camerasGrid = document.getElementById('gameCamerasGrid');
-    if (!camerasGrid) {
-        console.warn('⚠️ Game cameras grid not found');
+    const jitsiContainer = document.getElementById('game-jitsi-container');
+    if (!jitsiContainer) {
+        console.warn('⚠️ Game Jitsi container not found');
         return;
     }
     
-    // Add admin camera
-    addGameCameraCard('admin', gameData.admin.name, true);
+    const jitsiRoomName = `jeopardy-lobby-${lobbyId}`;
+    console.log(`🎮 Initializing game Jitsi for room: ${jitsiRoomName}`);
     
-    // Add player cameras
-    gameData.players.forEach((player, index) => {
-        addGameCameraCard(`player${index + 1}`, player.name, false);
-    });
-    
-    console.log(`✅ Game cameras initialized for ${gameData.players.length + 1} participants`);
+    try {
+        // Create compact Jitsi API instance for game
+        gameJitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+            roomName: jitsiRoomName,
+            parentNode: jitsiContainer,
+            width: '100%',
+            height: '100%',
+            configOverwrite: {
+                startWithAudioMuted: true, // Muted in game by default
+                startWithVideoMuted: false,
+                enableWelcomePage: false,
+                prejoinPageEnabled: false,
+                disableInviteFunctions: true,
+                doNotStoreRoom: true,
+                
+                // Compact game configuration
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: [], // Minimal toolbar for game
+                    SETTINGS_SECTIONS: [],
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    SHOW_BRAND_WATERMARK: false,
+                    SHOW_POWERED_BY: false,
+                    DEFAULT_BACKGROUND: '#1a1a1a',
+                    TILE_VIEW_MAX_COLUMNS: 4,
+                    FILMSTRIP_ENABLED: false // Hide filmstrip for cleaner look
+                }
+            },
+            userInfo: {
+                displayName: playerData.isAdmin ? `👑 ${playerData.name}` : `👤 ${playerData.name}`
+            }
+        });
+        
+        // Setup game Jitsi event listeners
+        gameJitsiApi.addEventListener('videoConferenceJoined', () => {
+            console.log('✅ Game Jitsi joined');
+            hideGameJitsiLoading();
+            
+            // Enable tile view
+            setTimeout(() => {
+                gameJitsiApi.executeCommand('setTileView', true);
+            }, 500);
+        });
+        
+        gameJitsiApi.addEventListener('participantJoined', () => {
+            // Ensure tile view stays enabled
+            setTimeout(() => {
+                gameJitsiApi.executeCommand('setTileView', true);
+            }, 300);
+        });
+        
+    } catch (error) {
+        console.error('❌ Error initializing game Jitsi:', error);
+        showGameJitsiError();
+    }
 }
 
-// Add camera card for game view
+// Toggle game Jitsi visibility
+function toggleGameJitsi() {
+    const jitsiContainer = document.getElementById('game-jitsi-container');
+    const toggleBtn = document.getElementById('game-toggle-jitsi');
+    
+    if (jitsiContainer && toggleBtn) {
+        gameJitsiVisible = !gameJitsiVisible;
+        jitsiContainer.style.display = gameJitsiVisible ? 'block' : 'none';
+        toggleBtn.textContent = gameJitsiVisible ? '📹 Ein/Aus' : '📹 Zeigen';
+        toggleBtn.style.background = gameJitsiVisible ? '#0066cc' : '#666';
+        
+        console.log(`📹 Game Jitsi ${gameJitsiVisible ? 'shown' : 'hidden'}`);
+    }
+}
+
+function hideGameJitsiLoading() {
+    const loading = document.getElementById('game-jitsi-loading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+}
+
+function showGameJitsiError() {
+    const loading = document.getElementById('game-jitsi-loading');
+    if (loading) {
+        loading.innerHTML = `
+            <div style="color: #dc3545;">
+                <div style="font-size: 16px; margin-bottom: 5px;">❌</div>
+                <div style="font-size: 11px;">Kamera-Fehler</div>
+            </div>
+        `;
+    }
+}
+
+// Cleanup game Jitsi
+function cleanupGameJitsi() {
+    if (gameJitsiApi) {
+        try {
+            gameJitsiApi.dispose();
+        } catch (error) {
+            console.warn('Warning disposing game Jitsi API:', error);
+        }
+        gameJitsiApi = null;
+    }
+}
+
+// Legacy function (replaced with Jitsi)
 function addGameCameraCard(playerId, playerName, isAdminPlayer = false) {
     const camerasGrid = document.getElementById('gameCamerasGrid');
     if (!camerasGrid) return;
@@ -146,8 +241,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize game interface
     initializeGame();
     
-    // Initialize individual camera system for game
-    initializeGameCameras();
+    // Initialize Jitsi tiles for game
+    setTimeout(() => {
+        initializeGameJitsi();
+    }, 2000); // Wait for lobby Jitsi to be ready
     
     // DOM elements
     const questionModal = document.getElementById('questionModal');
