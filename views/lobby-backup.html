@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Lobby</title>
+    <link rel="stylesheet" href="/css/style.css?v=1.1">
+</head>
+<body>
+    <div class="container">
+        <div class="lobby-screen">
+            <h1>Lobby <span id="lobbyId"></span></h1>
+            
+            <div class="lobby-info">
+                <div class="admin-section">
+                    <h3>Admin</h3>
+                    <div id="adminInfo" class="player-card admin-card">
+                        <span class="player-name"></span>
+                        <span class="admin-badge">ADMIN</span>
+                    </div>
+                </div>
+                
+                <div class="players-section">
+                    <h3>Spieler (<span id="playerCount">0</span>/4)</h3>
+                    <div id="playersList" class="players-list">
+                        <!-- Players will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="webcam-section">
+                <h3>Video-Konferenz</h3>
+                <div class="jitsi-container">
+                    <!-- Custom Jitsi Link Input -->
+                    <div id="jitsi-input-section" style="margin-bottom: 15px; padding: 15px; background: #2a2a2a; border-radius: 10px;">
+                        <label for="jitsi-url-input" style="color: #ccc; font-size: 14px; display: block; margin-bottom: 8px;">
+                            🎥 Jitsi Meet Link eingeben:
+                        </label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input 
+                                id="jitsi-url-input" 
+                                type="text" 
+                                placeholder="https://meet.jit.si/dein-raum-name"
+                                value="https://meet.jit.si/quizduell" 
+                                style="flex: 1; padding: 8px 12px; border: 1px solid #555; background: #1a1a1a; color: #fff; border-radius: 5px; font-size: 14px;"
+                            />
+                            <button id="load-jitsi-btn" style="padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; white-space: nowrap;">
+                                📺 Laden
+                            </button>
+                        </div>
+                        <div style="color: #888; font-size: 12px; margin-top: 5px;">
+                            Beispiele: meet.jit.si/quizduell, meet.jit.si/mein-raum, meet.jit.si/jeopardy-123
+                        </div>
+                    </div>
+
+                    <!-- Main Jitsi container -->
+                    <div id="jitsi-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
+                        <!-- Welcome message -->
+                        <div id="jitsi-welcome" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
+                            <div style="font-size: 18px; margin-bottom: 10px;">🎥 Video-Chat bereit</div>
+                            <div style="font-size: 14px; margin-bottom: 15px;">Gib oben einen Jitsi-Link ein und klicke "Laden"</div>
+                            <div style="font-size: 12px; color: #888;">Oder nutze den vorausgefüllten Link "quizduell"</div>
+                        </div>
+                        
+                        <!-- Custom iframe -->
+                        <iframe id="custom-jitsi-iframe" 
+                                style="width: 100%; height: 100%; border: none; border-radius: 10px; display: none;"
+                                allow="camera; microphone; fullscreen; display-capture; autoplay">
+                        </iframe>
+                    </div>
+                    
+                    <!-- Control buttons and info -->
+                    <div class="jitsi-controls" style="margin-top: 10px; text-align: center;">
+                        <div style="margin-bottom: 10px;">
+                            <button onclick="clearJitsi()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">❌ Leeren</button>
+                            <button onclick="openInNewTab()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">� Neuer Tab</button>
+                        </div>
+                        <div class="jitsi-info" style="color: #ccc; font-size: 14px;">
+                            Powered by Jitsi Meet - Eigener Video-Chat Link<br>
+                            <div style="margin-top: 5px; font-size: 12px; color: #888;">
+                                Tipp: Teile den gleichen Link mit deinen Freunden für gemeinsamen Video-Chat
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="lobby-actions" id="adminActions" style="display: none;">
+                <button id="startGameBtn" class="primary-btn">Spiel starten</button>
+            </div>
+            
+            <div class="lobby-actions">
+                <button id="leaveLobbyBtn" class="secondary-btn">Lobby verlassen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSS for loading spinner -->
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .jitsi-controls button {
+            transition: background-color 0.3s ease;
+        }
+        .jitsi-controls button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .jitsi-controls button:disabled {
+            background: #666 !important;
+            cursor: not-allowed;
+        }
+    </style>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Load Jitsi Meet API with error handling -->
+    <script>
+        let jitsiApiLoaded = false;
+        const jitsiScript = document.createElement('script');
+        jitsiScript.src = 'https://meet.jit.si/external_api.js';
+        jitsiScript.onload = function() {
+            console.log('✅ Jitsi Meet API loaded successfully');
+            jitsiApiLoaded = true;
+            if (window.jitsiApiReadyCallback) {
+                window.jitsiApiReadyCallback();
+            }
+        };
+        jitsiScript.onerror = function() {
+            console.warn('⚠️ Jitsi API failed to load, will use iframe fallback');
+            jitsiApiLoaded = false;
+            if (window.jitsiApiErrorCallback) {
+                window.jitsiApiErrorCallback();
+            }
+        };
+        document.head.appendChild(jitsiScript);
+    </script>
+    <script src="/js/lobby.js?v=1.1"></script>
+</body>
+</html>

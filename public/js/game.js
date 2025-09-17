@@ -6,6 +6,118 @@ let currentQuestions = {};
 let localStream = null;
 let playerStreams = new Map();
 
+// Camera system variables (matching lobby system)
+let isCameraActive = false;
+let isAudioActive = false;
+
+// Initialize game cameras
+function initializeGameCameras() {
+    console.log('🎥 Initializing game cameras system');
+    
+    const gameData = JSON.parse(sessionStorage.getItem('gameData') || '{}');
+    const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
+    
+    if (!gameData.admin || !gameData.players) {
+        console.warn('⚠️ Game data incomplete, skipping camera initialization');
+        return;
+    }
+    
+    const camerasGrid = document.getElementById('gameCamerasGrid');
+    if (!camerasGrid) {
+        console.warn('⚠️ Game cameras grid not found');
+        return;
+    }
+    
+    // Add admin camera
+    addGameCameraCard('admin', gameData.admin.name, true);
+    
+    // Add player cameras
+    gameData.players.forEach((player, index) => {
+        addGameCameraCard(`player${index + 1}`, player.name, false);
+    });
+    
+    console.log(`✅ Game cameras initialized for ${gameData.players.length + 1} participants`);
+}
+
+// Add camera card for game view
+function addGameCameraCard(playerId, playerName, isAdminPlayer = false) {
+    const camerasGrid = document.getElementById('gameCamerasGrid');
+    if (!camerasGrid) return;
+    
+    const cameraCard = document.createElement('div');
+    cameraCard.className = 'game-camera-card';
+    cameraCard.id = `game-camera-${playerId}`;
+    
+    const borderColor = isAdminPlayer ? '#ffd700' : '#007bff';
+    const namePrefix = isAdminPlayer ? '👑' : '👤';
+    
+    cameraCard.style.cssText = `
+        background: #2a2a2a; 
+        border: 2px solid ${borderColor}; 
+        border-radius: 8px; 
+        padding: 8px; 
+        text-align: center;
+    `;
+    
+    cameraCard.innerHTML = `
+        <div style="color: ${borderColor}; font-size: 11px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${namePrefix} ${playerName}
+        </div>
+        <div class="video-container" style="position: relative; background: #1a1a1a; border-radius: 4px; height: 80px; overflow: hidden;">
+            <video id="game-${playerId}-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000; display: none;"></video>
+            <div id="game-${playerId}-placeholder" class="video-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #888;">
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; margin-bottom: 2px;">📹</div>
+                    <div style="font-size: 8px;">Kamera nicht verfügbar</div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 4px; display: flex; justify-content: center; gap: 3px;">
+            <span id="game-${playerId}-camera-status" style="font-size: 10px; color: #888;">📹</span>
+            <span id="game-${playerId}-audio-status" style="font-size: 10px; color: #888;">🎤</span>
+        </div>
+    `;
+    
+    camerasGrid.appendChild(cameraCard);
+    console.log(`📹 Added game camera card for ${playerName} (${playerId})`);
+}
+
+// Update camera status in game view
+function updateGameCameraStatus(playerId, hasCamera, hasAudio) {
+    const videoElement = document.getElementById(`game-${playerId}-video`);
+    const placeholder = document.getElementById(`game-${playerId}-placeholder`);
+    const cameraStatus = document.getElementById(`game-${playerId}-camera-status`);
+    const audioStatus = document.getElementById(`game-${playerId}-audio-status`);
+    
+    if (placeholder) {
+        if (hasCamera) {
+            placeholder.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; margin-bottom: 2px; color: #4CAF50;">📹</div>
+                    <div style="font-size: 8px; color: #4CAF50;">Kamera aktiv</div>
+                </div>
+            `;
+        } else {
+            placeholder.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; margin-bottom: 2px;">📹</div>
+                    <div style="font-size: 8px;">Kamera nicht verfügbar</div>
+                </div>
+            `;
+        }
+    }
+    
+    if (cameraStatus) {
+        cameraStatus.textContent = hasCamera ? '📹' : '📷';
+        cameraStatus.style.color = hasCamera ? '#4CAF50' : '#888';
+    }
+    
+    if (audioStatus) {
+        audioStatus.textContent = hasAudio ? '🎤' : '🔇';
+        audioStatus.style.color = hasAudio ? '#4CAF50' : '#888';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
     lobbyId = window.location.pathname.split('/').pop();
@@ -33,7 +145,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize game interface
     initializeGame();
-    // setupWebcam(); // Disabled - causes camera conflicts
+    
+    // Initialize individual camera system for game
+    initializeGameCameras();
     
     // DOM elements
     const questionModal = document.getElementById('questionModal');
@@ -175,6 +289,14 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('lobbyDisconnected', function(message) {
         alert(message);
         window.location.href = '/';
+    });
+    
+    // Camera status updates from lobby
+    socket.on('cameraStatusUpdate', function(data) {
+        console.log('📹 Game camera status update:', data);
+        
+        const { playerId, hasCamera, hasAudio } = data;
+        updateGameCameraStatus(playerId, hasCamera, hasAudio);
     });
 
     function initializeGame() {

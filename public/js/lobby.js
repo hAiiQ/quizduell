@@ -314,125 +314,42 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize custom Jitsi system - much simpler!
     console.log('🎥 Custom Jitsi system ready - enter your own link above');
     
-    // Setup Jitsi button event listeners - safer than onclick
-    const loadJitsiBtn = document.getElementById('load-jitsi-btn');
-    const clearJitsiBtn = document.getElementById('clear-jitsi-btn');
-    const newTabJitsiBtn = document.getElementById('newtab-jitsi-btn');
-    const jitsiInput = document.getElementById('jitsi-url-input');
+    // Initialize individual camera system
+    console.log('🎥 Individual camera system initialized');
     
-    if (loadJitsiBtn) {
-        loadJitsiBtn.addEventListener('click', function() {
-            console.log('🔄 Load button clicked via event listener');
-            loadCustomJitsiSafe();
-        });
-    }
-    
-    if (clearJitsiBtn) {
-        clearJitsiBtn.addEventListener('click', function() {
-            console.log('🧹 Clear button clicked');
-            clearJitsiSafe();
-        });
-    }
-    
-    if (newTabJitsiBtn) {
-        newTabJitsiBtn.addEventListener('click', function() {
-            console.log('🔗 New tab button clicked');
-            openInNewTabSafe();
-        });
-    }
-    
-    // Handle Enter key in input field
-    if (jitsiInput) {
-        jitsiInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                console.log('⌨️ Enter key pressed in input');
-                loadCustomJitsiSafe();
-            }
-        });
-    }
-    
-    // Safe versions of the functions (defined locally in DOMContentLoaded)
-    function loadCustomJitsiSafe() {
-        console.log('🎥 loadCustomJitsiSafe called');
-        
-        const input = document.getElementById('jitsi-url-input');
-        const iframe = document.getElementById('custom-jitsi-iframe');
-        const welcome = document.getElementById('jitsi-welcome');
-        
-        if (!input || !iframe) {
-            console.error('❌ Elements not found:', {input: !!input, iframe: !!iframe});
-            alert('❌ Fehler: Video-Elemente nicht gefunden');
-            return;
+    // Handle player leaving (remove their video card)
+    socket.on('playerLeft', function(data) {
+        if (data.playerName && typeof removePlayerVideoCard === 'function') {
+            removePlayerVideoCard(data.playerName);
         }
+    });
+    
+    // Handle camera status updates from other players
+    socket.on('cameraStatusUpdate', function(data) {
+        console.log('📹 Camera status update:', data);
         
-        let url = input.value.trim();
-        console.log('📋 Input URL:', url);
+        const { playerId, hasCamera, hasAudio } = data;
+        const videoElement = document.getElementById(`${playerId}-video`);
+        const placeholder = document.getElementById(`${playerId}-video-placeholder`);
         
-        if (!url) {
-            alert('❌ Bitte gib einen Jitsi-Link ein');
-            return;
-        }
-        
-        // Add protocol if missing
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-        }
-        
-        // Ensure it's a valid Jitsi URL
-        if (!url.includes('meet.jit.si/')) {
-            if (url.includes('jit.si')) {
-                url = url.replace('jit.si', 'meet.jit.si');
+        if (placeholder) {
+            if (hasCamera) {
+                placeholder.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; margin-bottom: 4px; color: #4CAF50;">📹</div>
+                        <div style="font-size: 10px; color: #4CAF50;">Kamera aktiv</div>
+                    </div>
+                `;
             } else {
-                alert('❌ Bitte verwende einen gültigen Jitsi Meet Link (meet.jit.si/...)');
-                return;
+                placeholder.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; margin-bottom: 4px;">📹</div>
+                        <div style="font-size: 10px;">Kamera aus</div>
+                    </div>
+                `;
             }
         }
-        
-        console.log('🚀 Loading Jitsi:', url);
-        
-        // Hide welcome, show iframe
-        if (welcome) welcome.style.display = 'none';
-        iframe.src = url;
-        iframe.style.display = 'block';
-        
-        // Update input with cleaned URL
-        input.value = url;
-        
-        console.log('✅ Jitsi loaded successfully');
-    }
-    
-    function clearJitsiSafe() {
-        const iframe = document.getElementById('custom-jitsi-iframe');
-        const welcome = document.getElementById('jitsi-welcome');
-        
-        if (iframe) {
-            iframe.src = '';
-            iframe.style.display = 'none';
-        }
-        
-        if (welcome) {
-            welcome.style.display = 'block';
-        }
-        
-        console.log('🧹 Jitsi cleared');
-    }
-    
-    function openInNewTabSafe() {
-        const input = document.getElementById('jitsi-url-input');
-        
-        if (input && input.value.trim()) {
-            let url = input.value.trim();
-            
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://' + url;
-            }
-            
-            window.open(url, '_blank');
-            console.log('🔗 Opened in new tab:', url);
-        } else {
-            alert('❌ Bitte gib erst einen Jitsi-Link ein');
-        }
-    }
+    });
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
@@ -442,13 +359,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Leave lobby
     leaveLobbyBtn.addEventListener('click', function() {
         if (confirm('Möchtest du die Lobby wirklich verlassen?')) {
-            // Clean up Jitsi
-            if (jitsiApi && jitsiMode === 'api') {
-                try {
-                    jitsiApi.dispose();
-                } catch (error) {
-                    console.warn('Error disposing Jitsi API:', error);
-                }
+            // Clean up camera streams
+            if (typeof localStream !== 'undefined' && localStream) {
+                localStream.getTracks().forEach(track => track.stop());
             }
             
             sessionStorage.removeItem('playerData');
@@ -501,41 +414,51 @@ document.addEventListener('DOMContentLoaded', function() {
     function updatePlayersDisplay(data) {
         // Update admin info
         const adminInfo = document.getElementById('adminInfo');
-        adminInfo.querySelector('.player-name').textContent = data.admin.name;
+        const adminVideoName = document.getElementById('admin-video-name');
+        
+        if (adminInfo) {
+            adminInfo.querySelector('.player-name').textContent = data.admin.name;
+        }
+        
+        if (adminVideoName) {
+            adminVideoName.textContent = `👑 ${data.admin.name}`;
+        }
 
         // Update players list
         const playersList = document.getElementById('playersList');
         const playerCount = document.getElementById('playerCount');
         
-        playersList.innerHTML = '';
+        if (playersList) {
+            playersList.innerHTML = '';
+            
+            data.players.forEach((player, index) => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                playerCard.innerHTML = `
+                    <span class="player-name">${player.name}</span>
+                    <span class="player-number">Spieler ${index + 1}</span>
+                `;
+                playersList.appendChild(playerCard);
+                
+                // Add video card for each player
+                if (typeof addPlayerVideoCard === 'function') {
+                    addPlayerVideoCard(player, index);
+                }
+            });
+        }
         
-        data.players.forEach((player, index) => {
-            const playerCard = document.createElement('div');
-            playerCard.className = 'player-card';
-            playerCard.innerHTML = `
-                <span class="player-name">${player.name}</span>
-                <span class="player-number">Spieler ${index + 1}</span>
-            `;
-            playersList.appendChild(playerCard);
-        });
-        
-        playerCount.textContent = data.players.length;
+        if (playerCount) {
+            playerCount.textContent = data.players.length;
+        }
         
         // Update start button state
         if (isAdmin) {
             startGameBtn.disabled = data.players.length === 0;
         }
+        
+        console.log(`📹 Updated display for ${data.players.length} players`);
     }
 
-    // Video display handled by Jitsi Meet with robust fallback system
-    // Handle page unload
-    window.addEventListener('beforeunload', function() {
-        if (jitsiApi && jitsiMode === 'api') {
-            try {
-                jitsiApi.dispose();
-            } catch (error) {
-                console.warn('Error disposing Jitsi API on unload:', error);
-            }
-        }
-    });
+    // Individual camera system handles cleanup automatically
+    console.log('✅ Lobby initialization complete with individual cameras');
 });
