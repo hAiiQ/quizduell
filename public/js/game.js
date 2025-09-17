@@ -386,44 +386,19 @@ document.addEventListener('DOMContentLoaded', function() {
         gameEndModal.style.display = 'flex';
     }
 
-    async function setupWebcam() {
+    function setupWebcam() {
         const webcamGrid = document.getElementById('webcamGrid');
         
         try {
-            // Check if getUserMedia is available
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        width: { ideal: 320 },
-                        height: { ideal: 240 },
-                        facingMode: 'user'
-                    }, 
-                    audio: false 
-                });
-                
-                // Add local video
-                const localFeed = document.createElement('div');
-                localFeed.className = 'webcam-feed';
-                localFeed.innerHTML = `
-                    <video autoplay muted playsinline></video>
-                    <div class="webcam-label">${playerData.name} (Du)</div>
-                `;
-                
-                const localVideo = localFeed.querySelector('video');
-                localVideo.srcObject = localStream;
-                webcamGrid.appendChild(localFeed);
-                
-                console.log('Webcam setup successful');
-            } else {
-                // Add placeholder for local user without camera
-                const localFeed = document.createElement('div');
-                localFeed.className = 'webcam-feed';
-                localFeed.innerHTML = `
-                    <div class="webcam-placeholder">Kamera nicht verfügbar</div>
-                    <div class="webcam-label">${playerData.name} (Du)</div>
-                `;
-                webcamGrid.appendChild(localFeed);
-            }
+            // Don't access camera in game - it's handled by lobby
+            // Add placeholder for local user
+            const localFeed = document.createElement('div');
+            localFeed.className = 'webcam-feed';
+            localFeed.innerHTML = `
+                <div class="webcam-placeholder">📹 Kamera-Stream</div>
+                <div class="webcam-label">${playerData.name} (Du)</div>
+            `;
+            webcamGrid.appendChild(localFeed);
             
             // Add placeholder feeds for other players
             gameData.players.forEach(player => {
@@ -431,12 +406,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     const playerFeed = document.createElement('div');
                     playerFeed.className = 'webcam-feed';
                     playerFeed.innerHTML = `
-                        <div class="webcam-placeholder">Kamera nicht verfügbar</div>
+                        <div class="webcam-placeholder">📷 Kamera-Stream</div>
                         <div class="webcam-label">${player.name}</div>
                     `;
                     webcamGrid.appendChild(playerFeed);
                 }
             });
+            
+            console.log('Webcam setup completed (placeholder mode)');
             
         } catch (error) {
             console.error('Webcam setup error:', error);
@@ -445,23 +422,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const errorFeed = document.createElement('div');
             errorFeed.className = 'webcam-feed';
             errorFeed.innerHTML = `
-                <div class="webcam-placeholder">Kamera-Fehler</div>
+                <div class="webcam-placeholder">❌ Fehler</div>
                 <div class="webcam-label">${playerData.name} (Du)</div>
             `;
             webcamGrid.appendChild(errorFeed);
-            
-            // Still add placeholders for other players
-            gameData.players.forEach(player => {
-                if (player.name !== playerData.name) {
-                    const playerFeed = document.createElement('div');
-                    playerFeed.className = 'webcam-feed';
-                    playerFeed.innerHTML = `
-                        <div class="webcam-placeholder">Kamera nicht verfügbar</div>
-                        <div class="webcam-label">${player.name}</div>
-                    `;
-                    webcamGrid.appendChild(playerFeed);
-                }
-            });
         }
     }
 
