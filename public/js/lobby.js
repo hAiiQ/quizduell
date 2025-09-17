@@ -314,14 +314,124 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize custom Jitsi system - much simpler!
     console.log('🎥 Custom Jitsi system ready - enter your own link above');
     
-    // Handle Enter key in input field
+    // Setup Jitsi button event listeners - safer than onclick
+    const loadJitsiBtn = document.getElementById('load-jitsi-btn');
+    const clearJitsiBtn = document.getElementById('clear-jitsi-btn');
+    const newTabJitsiBtn = document.getElementById('newtab-jitsi-btn');
     const jitsiInput = document.getElementById('jitsi-url-input');
+    
+    if (loadJitsiBtn) {
+        loadJitsiBtn.addEventListener('click', function() {
+            console.log('🔄 Load button clicked via event listener');
+            loadCustomJitsiSafe();
+        });
+    }
+    
+    if (clearJitsiBtn) {
+        clearJitsiBtn.addEventListener('click', function() {
+            console.log('🧹 Clear button clicked');
+            clearJitsiSafe();
+        });
+    }
+    
+    if (newTabJitsiBtn) {
+        newTabJitsiBtn.addEventListener('click', function() {
+            console.log('🔗 New tab button clicked');
+            openInNewTabSafe();
+        });
+    }
+    
+    // Handle Enter key in input field
     if (jitsiInput) {
         jitsiInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                loadCustomJitsi();
+                console.log('⌨️ Enter key pressed in input');
+                loadCustomJitsiSafe();
             }
         });
+    }
+    
+    // Safe versions of the functions (defined locally in DOMContentLoaded)
+    function loadCustomJitsiSafe() {
+        console.log('🎥 loadCustomJitsiSafe called');
+        
+        const input = document.getElementById('jitsi-url-input');
+        const iframe = document.getElementById('custom-jitsi-iframe');
+        const welcome = document.getElementById('jitsi-welcome');
+        
+        if (!input || !iframe) {
+            console.error('❌ Elements not found:', {input: !!input, iframe: !!iframe});
+            alert('❌ Fehler: Video-Elemente nicht gefunden');
+            return;
+        }
+        
+        let url = input.value.trim();
+        console.log('📋 Input URL:', url);
+        
+        if (!url) {
+            alert('❌ Bitte gib einen Jitsi-Link ein');
+            return;
+        }
+        
+        // Add protocol if missing
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        
+        // Ensure it's a valid Jitsi URL
+        if (!url.includes('meet.jit.si/')) {
+            if (url.includes('jit.si')) {
+                url = url.replace('jit.si', 'meet.jit.si');
+            } else {
+                alert('❌ Bitte verwende einen gültigen Jitsi Meet Link (meet.jit.si/...)');
+                return;
+            }
+        }
+        
+        console.log('🚀 Loading Jitsi:', url);
+        
+        // Hide welcome, show iframe
+        if (welcome) welcome.style.display = 'none';
+        iframe.src = url;
+        iframe.style.display = 'block';
+        
+        // Update input with cleaned URL
+        input.value = url;
+        
+        console.log('✅ Jitsi loaded successfully');
+    }
+    
+    function clearJitsiSafe() {
+        const iframe = document.getElementById('custom-jitsi-iframe');
+        const welcome = document.getElementById('jitsi-welcome');
+        
+        if (iframe) {
+            iframe.src = '';
+            iframe.style.display = 'none';
+        }
+        
+        if (welcome) {
+            welcome.style.display = 'block';
+        }
+        
+        console.log('🧹 Jitsi cleared');
+    }
+    
+    function openInNewTabSafe() {
+        const input = document.getElementById('jitsi-url-input');
+        
+        if (input && input.value.trim()) {
+            let url = input.value.trim();
+            
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            
+            window.open(url, '_blank');
+            console.log('🔗 Opened in new tab:', url);
+        } else {
+            alert('❌ Bitte gib erst einen Jitsi-Link ein');
+        }
     }
 
     // Start game (admin only)
