@@ -30,27 +30,26 @@
             
             <div class="webcam-section">
                 <h3>Video-Konferenz</h3>
-                <div class="jitsi-container">
-                    <div id="jitsi-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
-                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
-                            <div>📹 Video-Konferenz wird geladen...</div>
-                            <div style="font-size: 14px; margin-top: 10px;">Automatische Raum-Erstellung: <span id="jitsiRoomName"></span></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="forceLoadJitsi()" style="padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Jetzt laden</button>
-                            </div>
+                <div class="whereby-container">
+                    <div id="whereby-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
+                        <iframe 
+                            id="wherebyFrame"
+                            style="width: 100%; height: 100%; border: none; border-radius: 10px;"
+                            allow="camera; microphone; fullscreen; display-capture; autoplay">
+                        </iframe>
+                        <div id="loadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
+                            <div>📹 Lade Video-Chat...</div>
+                            <div style="font-size: 14px; margin-top: 10px;">Raum: <span id="wherebyRoomName"></span></div>
                         </div>
                     </div>
-                    <div class="jitsi-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
-                        Powered by Jitsi Meet - Sicherer Video-Chat<br>
+                    <div class="whereby-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
+                        Powered by Whereby - Sofortiger Video-Chat<br>
                         <div style="margin-top: 5px;">
-                            <strong>Problem mit Video?</strong><br>
-                        <a id="directJitsiLink" href="#" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📹 Video-Chat in neuem Tab öffnen</a>
+                            <a id="directWherebyLink" href="#" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📹 In neuem Tab öffnen</a>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="lobby-actions" id="adminActions" style="display: none;">
+            </div>            <div class="lobby-actions" id="adminActions" style="display: none;">
                 <button id="startGameBtn" class="primary-btn">Spiel starten</button>
             </div>
             
@@ -61,18 +60,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        // Load Jitsi API with fallback
-        const jitsiScript = document.createElement('script');
-        jitsiScript.src = 'https://meet.jit.si/external_api.js';
-        jitsiScript.onload = function() {
-            console.log('✅ Jitsi Meet API loaded successfully');
-        };
-        jitsiScript.onerror = function() {
-            console.error('❌ Failed to load Jitsi Meet API');
-        };
-        document.head.appendChild(jitsiScript);
-    </script>
+
     <script src="/js/lobby.js"></script>
 </body>
 </html>

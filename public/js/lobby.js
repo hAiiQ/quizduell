@@ -1,42 +1,15 @@
 const socket = io();
 let isAdmin = false;
 let lobbyId = '';
-let jitsiApi = null;
+let wherebyLoaded = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
     lobbyId = window.location.pathname.split('/').pop();
     document.getElementById('lobbyId').textContent = lobbyId;
     
-    // Initialize Jitsi Meet with delay to ensure API is loaded
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    function checkAndInitializeJitsi() {
-        attempts++;
-        
-        if (typeof JitsiMeetExternalAPI !== 'undefined') {
-            console.log('✅ JitsiMeetExternalAPI found, initializing...');
-            initializeJitsi();
-        } else if (attempts < maxAttempts) {
-            console.log(`⏳ Waiting for Jitsi API... (${attempts}/${maxAttempts})`);
-            setTimeout(checkAndInitializeJitsi, 500);
-        } else {
-            console.error('❌ JitsiMeetExternalAPI failed to load after maximum attempts');
-            // Fallback: Load Jitsi in iframe
-            const roomName = `jeopardy-lobby-${lobbyId}`;
-            document.querySelector('#jitsi-meet').innerHTML = `
-                <iframe 
-                    src="https://meet.jit.si/${roomName}" 
-                    style="width: 100%; height: 100%; border: none; border-radius: 10px;"
-                    allow="camera; microphone; fullscreen; display-capture">
-                </iframe>
-            `;
-            console.log('✅ Jitsi loaded via iframe fallback');
-        }
-    }
-    
-    checkAndInitializeJitsi();
+    // Initialize Whereby - much simpler and faster than Jitsi
+    initializeWhereby();
 
     const startGameBtn = document.getElementById('startGameBtn');
     const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
@@ -60,97 +33,43 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Jitsi Meet initialization
-    function initializeJitsi() {
+    // Whereby initialization - much simpler than Jitsi!
+    function initializeWhereby() {
         const roomName = `jeopardy-lobby-${lobbyId}`;
-        document.getElementById('jitsiRoomName').textContent = roomName;
+        const wherebyUrl = `https://whereby.com/${roomName}`;
         
-        // Update direct link - WICHTIG: Muss vor der Jitsi Initialisierung stehen
-        const directLink = document.getElementById('directJitsiLink');
+        console.log(`🎥 Initializing Whereby room: ${roomName}`);
+        console.log(`🔗 Whereby URL: ${wherebyUrl}`);
+        
+        // Update room name display
+        document.getElementById('wherebyRoomName').textContent = roomName;
+        
+        // Update direct link
+        const directLink = document.getElementById('directWherebyLink');
         if (directLink) {
-            directLink.href = `https://meet.jit.si/${roomName}`;
-            directLink.textContent = 'Video-Chat direkt bei Jitsi öffnen';
-            console.log(`🔗 Direct Jitsi link updated: https://meet.jit.si/${roomName}`);
+            directLink.href = wherebyUrl;
+            console.log(`🔗 Direct Whereby link updated: ${wherebyUrl}`);
         }
         
-        console.log(`🎥 Initializing Jitsi Meet room: ${roomName}`);
+        // Load Whereby in iframe - no complex API needed!
+        const iframe = document.getElementById('wherebyFrame');
+        // Add embed parameter for better integration
+        iframe.src = `${wherebyUrl}?embed&displayName=Spieler&background=off`;
         
-        // Check if JitsiMeetExternalAPI is loaded
-        if (typeof JitsiMeetExternalAPI === 'undefined') {
-            console.error('❌ JitsiMeetExternalAPI is not loaded');
-            document.querySelector('#jitsi-meet').innerHTML = `
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
-                    <div>❌ Jitsi Meet API konnte nicht geladen werden</div>
-                    <div style="font-size: 12px; margin-top: 10px;">Versuche die Seite neu zu laden</div>
-                    <button onclick="window.location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Neu laden</button>
-                </div>
-            `;
-            return;
-        }
-        
-        const domain = 'meet.jit.si';
-        const options = {
-            roomName: roomName,
-            width: '100%',
-            height: '100%',
-            parentNode: document.querySelector('#jitsi-meet'),
-            configOverwrite: {
-                startWithAudioMuted: true,
-                startWithVideoMuted: false,
-                enableWelcomePage: false,
-                prejoinPageEnabled: false,
-                disableModeratorIndicator: true,
-                startScreenSharing: false,
-                enableEmailInStats: false
-            },
-            interfaceConfigOverwrite: {
-                TOOLBAR_BUTTONS: [
-                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-                    'fodeviceselection', 'hangup', 'profile', 'chat', 'settings', 'videoquality',
-                    'filmstrip', 'feedback', 'stats', 'shortcuts'
-                ],
-                SETTINGS_SECTIONS: ['devices', 'language'],
-                SHOW_JITSI_WATERMARK: false,
-                SHOW_WATERMARK_FOR_GUESTS: false,
-                SHOW_BRAND_WATERMARK: false,
-                BRAND_WATERMARK_LINK: "",
-                SHOW_POWERED_BY: false,
-                DISPLAY_WELCOME_PAGE_CONTENT: false,
-                DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
-                APP_NAME: "Jeopardy Video Chat"
-            }
+        // Hide loading indicator after iframe loads
+        iframe.onload = function() {
+            console.log('✅ Whereby loaded successfully!');
+            document.getElementById('loadingIndicator').style.display = 'none';
+            wherebyLoaded = true;
         };
         
-        try {
-            jitsiApi = new JitsiMeetExternalAPI(domain, options);
-            
-            jitsiApi.addEventListener('videoConferenceJoined', () => {
-                console.log('✅ Successfully joined Jitsi room');
-                const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
-                jitsiApi.executeCommand('displayName', playerData.name || 'Spieler');
-            });
-            
-            jitsiApi.addEventListener('participantJoined', (participant) => {
-                console.log('👥 New participant joined:', participant.displayName);
-            });
-            
-            jitsiApi.addEventListener('participantLeft', (participant) => {
-                console.log('👋 Participant left:', participant.displayName);
-            });
-            
-            console.log('🎥 Jitsi Meet initialized successfully');
-            
-        } catch (error) {
-            console.error('❌ Jitsi initialization failed:', error);
-            document.querySelector('#jitsi-meet').innerHTML = `
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
-                    <div>❌ Video-Chat konnte nicht geladen werden</div>
-                    <div style="font-size: 12px; margin-top: 10px;">Fehler: ${error.message}</div>
-                    <button onclick="initializeJitsi()" style="margin-top: 10px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Erneut versuchen</button>
-                    <div style="font-size: 12px; margin-top: 10px;">Oder <a href="https://meet.jit.si/jeopardy-lobby-${lobbyId}" target="_blank" style="color: #0066cc;">direkt bei Jitsi öffnen</a></div>
-                </div>
-            `;
-        }
+        // Fallback: hide loading after 3 seconds even if onload doesn't fire
+        setTimeout(() => {
+            if (!wherebyLoaded) {
+                console.log('⏰ Whereby load timeout - hiding loading indicator');
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }, 3000);
     }
 
     // Start game (admin only)
@@ -161,11 +80,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Leave lobby
     leaveLobbyBtn.addEventListener('click', function() {
         if (confirm('Möchtest du die Lobby wirklich verlassen?')) {
-            // Disconnect from Jitsi
-            if (jitsiApi) {
-                jitsiApi.dispose();
-            }
-            
             sessionStorage.removeItem('playerData');
             window.location.href = '/';
         }
@@ -242,25 +156,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Force load Jitsi Meet function (global for HTML onclick)
-    window.forceLoadJitsi = function() {
-        console.log('🔄 Force loading Jitsi Meet...');
-        document.querySelector('#jitsi-meet').innerHTML = `
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
-                <div>🔄 Erzwinge Video-Chat Laden...</div>
-            </div>
-        `;
-        setTimeout(() => {
-            initializeJitsi();
-        }, 500);
-    };
-
-    // Video display now handled by Jitsi Meet - no custom functions needed
-    // Handle page unload
-    window.addEventListener('beforeunload', function() {
-        // Disconnect from Jitsi
-        if (jitsiApi) {
-            jitsiApi.dispose();
-        }
-    });
+    // Video display now handled by Whereby - much simpler!
+    // No cleanup needed for Whereby iframes
 });
