@@ -8,8 +8,31 @@ document.addEventListener('DOMContentLoaded', function() {
     lobbyId = window.location.pathname.split('/').pop();
     document.getElementById('lobbyId').textContent = lobbyId;
     
-    // Initialize Jitsi Meet
-    initializeJitsi();
+    // Initialize Jitsi Meet with delay to ensure API is loaded
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    function checkAndInitializeJitsi() {
+        attempts++;
+        
+        if (typeof JitsiMeetExternalAPI !== 'undefined') {
+            console.log('✅ JitsiMeetExternalAPI found, initializing...');
+            initializeJitsi();
+        } else if (attempts < maxAttempts) {
+            console.log(`⏳ Waiting for Jitsi API... (${attempts}/${maxAttempts})`);
+            setTimeout(checkAndInitializeJitsi, 500);
+        } else {
+            console.error('❌ JitsiMeetExternalAPI failed to load after maximum attempts');
+            document.querySelector('#jitsi-meet').innerHTML = `
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
+                    <div>❌ Video-Chat API konnte nicht geladen werden</div>
+                    <div style="font-size: 12px; margin-top: 10px;">Nutze den direkten Link unten</div>
+                </div>
+            `;
+        }
+    }
+    
+    checkAndInitializeJitsi();
 
     const startGameBtn = document.getElementById('startGameBtn');
     const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
@@ -38,7 +61,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const roomName = `jeopardy-lobby-${lobbyId}`;
         document.getElementById('jitsiRoomName').textContent = roomName;
         
+        // Update direct link
+        const directLink = document.getElementById('directJitsiLink');
+        if (directLink) {
+            directLink.href = `https://meet.jit.si/${roomName}`;
+        }
+        
         console.log(`🎥 Initializing Jitsi Meet room: ${roomName}`);
+        
+        // Check if JitsiMeetExternalAPI is loaded
+        if (typeof JitsiMeetExternalAPI === 'undefined') {
+            console.error('❌ JitsiMeetExternalAPI is not loaded');
+            document.querySelector('#jitsi-meet').innerHTML = `
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
+                    <div>❌ Jitsi Meet API konnte nicht geladen werden</div>
+                    <div style="font-size: 12px; margin-top: 10px;">Versuche die Seite neu zu laden</div>
+                    <button onclick="window.location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Neu laden</button>
+                </div>
+            `;
+            return;
+        }
         
         const domain = 'meet.jit.si';
         const options = {
@@ -97,7 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('#jitsi-meet').innerHTML = `
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
                     <div>❌ Video-Chat konnte nicht geladen werden</div>
-                    <div style="font-size: 12px; margin-top: 10px;">Überprüfe deine Internetverbindung</div>
+                    <div style="font-size: 12px; margin-top: 10px;">Fehler: ${error.message}</div>
+                    <button onclick="initializeJitsi()" style="margin-top: 10px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Erneut versuchen</button>
+                    <div style="font-size: 12px; margin-top: 10px;">Oder <a href="https://meet.jit.si/jeopardy-lobby-${lobbyId}" target="_blank" style="color: #0066cc;">direkt bei Jitsi öffnen</a></div>
                 </div>
             `;
         }

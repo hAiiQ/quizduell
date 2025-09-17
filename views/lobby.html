@@ -38,7 +38,10 @@
                         </div>
                     </div>
                     <div class="jitsi-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
-                        Powered by Jitsi Meet - Sicherer Video-Chat
+                        Powered by Jitsi Meet - Sicherer Video-Chat<br>
+                        <div style="margin-top: 5px;">
+                            Alternative: <a id="directJitsiLink" href="#" target="_blank" style="color: #0066cc;">Direkt bei Jitsi öffnen</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -54,7 +57,18 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://meet.jit.si/external_api.js"></script>
+    <script>
+        // Load Jitsi API with fallback
+        const jitsiScript = document.createElement('script');
+        jitsiScript.src = 'https://meet.jit.si/external_api.js';
+        jitsiScript.onload = function() {
+            console.log('✅ Jitsi Meet API loaded successfully');
+        };
+        jitsiScript.onerror = function() {
+            console.error('❌ Failed to load Jitsi Meet API');
+        };
+        document.head.appendChild(jitsiScript);
+    </script>
     <script src="/js/lobby.js"></script>
 </body>
 </html>
