@@ -8,12 +8,15 @@ document.addEventListener('DOMContentLoaded', function() {
     lobbyId = window.location.pathname.split('/').pop();
     document.getElementById('lobbyId').textContent = lobbyId;
     
-    // Initialize Whereby - much simpler and faster than Jitsi
-    initializeWhereby();
-
     const startGameBtn = document.getElementById('startGameBtn');
     const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
     const adminActions = document.getElementById('adminActions');
+    
+    // Check if all required elements exist before proceeding
+    if (!startGameBtn || !leaveLobbyBtn || !adminActions) {
+        console.error('❌ Required lobby elements not found');
+        return;
+    }
 
     // Join the lobby (reconnect)
     const playerData = sessionStorage.getItem('playerData');
@@ -33,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Whereby initialization - much simpler than Jitsi!
+    // Whereby initialization function - defined first
     function initializeWhereby() {
         const roomName = `jeopardy-lobby-${lobbyId}`;
         const wherebyUrl = `https://whereby.com/${roomName}`;
@@ -41,36 +44,52 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`🎥 Initializing Whereby room: ${roomName}`);
         console.log(`🔗 Whereby URL: ${wherebyUrl}`);
         
-        // Update room name display
-        document.getElementById('wherebyRoomName').textContent = roomName;
+        // Update room name display with safety check
+        const roomNameElement = document.getElementById('wherebyRoomName');
+        if (roomNameElement) {
+            roomNameElement.textContent = roomName;
+        }
         
-        // Update direct link
+        // Update direct link with safety check
         const directLink = document.getElementById('directWherebyLink');
         if (directLink) {
             directLink.href = wherebyUrl;
             console.log(`🔗 Direct Whereby link updated: ${wherebyUrl}`);
         }
         
-        // Load Whereby in iframe - no complex API needed!
+        // Load Whereby in iframe with safety check
         const iframe = document.getElementById('wherebyFrame');
-        // Add embed parameter for better integration
-        iframe.src = `${wherebyUrl}?embed&displayName=Spieler&background=off`;
-        
-        // Hide loading indicator after iframe loads
-        iframe.onload = function() {
-            console.log('✅ Whereby loaded successfully!');
-            document.getElementById('loadingIndicator').style.display = 'none';
-            wherebyLoaded = true;
-        };
+        if (iframe) {
+            // Add embed parameter for better integration
+            iframe.src = `${wherebyUrl}?embed&displayName=Spieler&background=off`;
+            
+            // Hide loading indicator after iframe loads
+            iframe.onload = function() {
+                console.log('✅ Whereby loaded successfully!');
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                wherebyLoaded = true;
+            };
+        } else {
+            console.error('❌ Whereby iframe not found');
+        }
         
         // Fallback: hide loading after 3 seconds even if onload doesn't fire
         setTimeout(() => {
             if (!wherebyLoaded) {
                 console.log('⏰ Whereby load timeout - hiding loading indicator');
-                document.getElementById('loadingIndicator').style.display = 'none';
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
             }
         }, 3000);
     }
+
+    // Initialize Whereby after all elements are confirmed to exist
+    initializeWhereby();
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
