@@ -4,12 +4,21 @@ let lobbyId = '';
 
 // Global functions for HTML buttons - Custom Jitsi System
 window.loadCustomJitsi = function() {
+    console.log('🔄 loadCustomJitsi function called!');
+    
     const input = document.getElementById('jitsi-url-input');
     const iframe = document.getElementById('custom-jitsi-iframe');
     const welcome = document.getElementById('jitsi-welcome');
     
+    console.log('📋 Elements found:', {
+        input: !!input,
+        iframe: !!iframe, 
+        welcome: !!welcome
+    });
+    
     if (!input || !iframe) {
         console.error('❌ Jitsi elements not found');
+        alert('❌ Fehler: Video-Elemente nicht gefunden');
         return;
     }
     
