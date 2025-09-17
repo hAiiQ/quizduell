@@ -313,6 +313,23 @@ io.on('connection', (socket) => {
     console.log(`${player.name} ${cameraActive ? 'activated' : 'deactivated'} camera in lobby ${player.lobbyId}`);
   });
 
+  // Handle video frame sharing
+  socket.on('videoFrame', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    
+    const lobby = lobbies.get(player.lobbyId);
+    if (!lobby) return;
+    
+    // Broadcast video frame to all other players in the lobby
+    socket.to(player.lobbyId).emit('videoFrame', {
+      playerId: socket.id,
+      playerName: player.name,
+      image: data.image,
+      timestamp: data.timestamp
+    });
+  });
+
   // Start game
   socket.on('startGame', () => {
     const player = players.get(socket.id);

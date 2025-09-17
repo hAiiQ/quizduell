@@ -2,6 +2,7 @@ const socket = io();
 let isAdmin = false;
 let lobbyId = '';
 let localStream = null;
+let videoCaptureInterval = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
@@ -58,6 +59,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Notify server about camera activation
                 socket.emit('toggleCamera', true);
                 
+                // Start sending video frames
+                startVideoCapture();
+                
                 console.log('Camera activated successfully');
             } catch (error) {
                 console.error('Camera access error:', error);
@@ -97,6 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Notify server about camera deactivation
             socket.emit('toggleCamera', false);
+            
+            // Stop video capture
+            stopVideoCapture();
             
             console.log('Camera deactivated');
         }
@@ -197,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show admin video if current user is not admin
         const currentPlayerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
         if (!currentPlayerData.isAdmin) {
-            const adminContainer = createVideoContainer(data.admin.name, data.admin.cameraActive);
+            const adminContainer = createVideoContainer(data.admin.name, data.admin.cameraActive, data.admin.id);
             remoteVideos.appendChild(adminContainer);
         }
         
@@ -205,18 +212,19 @@ document.addEventListener('DOMContentLoaded', function() {
         data.players.forEach((player, index) => {
             // Don't show own video in remote section
             if (player.name !== currentPlayerData.name) {
-                const playerContainer = createVideoContainer(player.name, player.cameraActive);
+                const playerContainer = createVideoContainer(player.name, player.cameraActive, player.id);
                 remoteVideos.appendChild(playerContainer);
             }
         });
     }
     
-    function createVideoContainer(playerName, cameraActive) {
+    function createVideoContainer(playerName, cameraActive, playerId) {
         const container = document.createElement('div');
         container.className = 'video-container';
+        container.setAttribute('data-player-id', playerId);
         
         const videoElement = cameraActive ? 
-            '<div class="video-placeholder">📹<br>Kamera aktiv</div>' :
+            '<img class="video-stream webcam-preview" src="" alt="Video Stream" style="display: block;">' :
             '<div class="video-placeholder">📷<br>Kamera aus</div>';
         
         container.innerHTML = `
@@ -228,10 +236,61 @@ document.addEventListener('DOMContentLoaded', function() {
         return container;
     }
 
+    function startVideoCapture() {
+        if (videoCaptureInterval) return;
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const localVideo = document.getElementById('localVideo');
+        
+        canvas.width = 320;
+        canvas.height = 240;
+        
+        videoCaptureInterval = setInterval(() => {
+            if (localStream && localVideo.videoWidth > 0) {
+                // Draw current video frame to canvas
+                ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+                
+                // Convert to base64 image
+                const imageData = canvas.toDataURL('image/jpeg', 0.6);
+                
+                // Send to server
+                socket.emit('videoFrame', {
+                    image: imageData,
+                    timestamp: Date.now()
+                });
+            }
+        }, 1000); // Send frame every second (low frequency to avoid overload)
+    }
+    
+    function stopVideoCapture() {
+        if (videoCaptureInterval) {
+            clearInterval(videoCaptureInterval);
+            videoCaptureInterval = null;
+        }
+    }
+
+    // Handle incoming video frames from other players
+    socket.on('videoFrame', function(data) {
+        const { playerId, playerName, image } = data;
+        
+        // Find the video container for this player
+        const remoteVideos = document.getElementById('remoteVideos');
+        let videoContainer = remoteVideos.querySelector(`[data-player-id="${playerId}"]`);
+        
+        if (videoContainer) {
+            const imgElement = videoContainer.querySelector('.video-stream');
+            if (imgElement) {
+                imgElement.src = image;
+            }
+        }
+    });
+
     // Handle page unload
     window.addEventListener('beforeunload', function() {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
+        stopVideoCapture();
     });
 });
