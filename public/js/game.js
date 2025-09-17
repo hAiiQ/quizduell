@@ -19,6 +19,7 @@ function initializeGameJitsi() {
     
     if (!lobbyId) {
         console.warn('⚠️ No lobby ID for Jitsi initialization');
+        showGameJitsiError('Keine Lobby ID gefunden');
         return;
     }
     
@@ -28,11 +29,29 @@ function initializeGameJitsi() {
         return;
     }
     
+    // Check if Jitsi API is available
+    if (typeof JitsiMeetExternalAPI === 'undefined') {
+        console.error('❌ Jitsi API not loaded');
+        showGameJitsiError('Jitsi API nicht verfügbar');
+        return;
+    }
+    
     const jitsiRoomName = `jeopardy-lobby-${lobbyId}`;
     console.log(`🎮 Initializing game Jitsi for room: ${jitsiRoomName}`);
     
+    // Show loading state
+    const loadingElement = document.getElementById('game-jitsi-loading');
+    if (loadingElement) {
+        loadingElement.innerHTML = `
+            <div>
+                <div style="font-size: 16px; margin-bottom: 5px;">🔄</div>
+                <div style="font-size: 11px;">Jitsi wird geladen...</div>
+            </div>
+        `;
+    }
+    
     try {
-        // Create compact Jitsi API instance for game
+        // Create compact Jitsi API instance for game  
         gameJitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
             roomName: jitsiRoomName,
             parentNode: jitsiContainer,
@@ -44,47 +63,76 @@ function initializeGameJitsi() {
                 enableWelcomePage: false,
                 prejoinPageEnabled: false,
                 disableInviteFunctions: true,
-                doNotStoreRoom: true,
-                
-                // Compact game configuration
-                interfaceConfigOverwrite: {
-                    TOOLBAR_BUTTONS: [], // Minimal toolbar for game
-                    SETTINGS_SECTIONS: [],
-                    SHOW_JITSI_WATERMARK: false,
-                    SHOW_WATERMARK_FOR_GUESTS: false,
-                    SHOW_BRAND_WATERMARK: false,
-                    SHOW_POWERED_BY: false,
-                    DEFAULT_BACKGROUND: '#1a1a1a',
-                    TILE_VIEW_MAX_COLUMNS: 4,
-                    FILMSTRIP_ENABLED: false // Hide filmstrip for cleaner look
-                }
+                doNotStoreRoom: true
+            },
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: ['microphone', 'camera'], // Minimal toolbar for game
+                SETTINGS_SECTIONS: [],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                SHOW_BRAND_WATERMARK: false,
+                SHOW_POWERED_BY: false,
+                DEFAULT_BACKGROUND: '#1a1a1a',
+                TILE_VIEW_MAX_COLUMNS: 4,
+                FILMSTRIP_ENABLED: true,
+                INITIAL_TOOLBAR_TIMEOUT: 20000,
+                TOOLBAR_TIMEOUT: 4000
             },
             userInfo: {
                 displayName: playerData.isAdmin ? `👑 ${playerData.name}` : `👤 ${playerData.name}`
             }
         });
         
-        // Setup game Jitsi event listeners
+        // Setup game Jitsi event listeners with timeout fallback
+        const joinTimeout = setTimeout(() => {
+            console.warn('⏰ Jitsi join timeout');
+            showGameJitsiError('Verbindung dauert zu lange');
+        }, 10000);
+        
         gameJitsiApi.addEventListener('videoConferenceJoined', () => {
-            console.log('✅ Game Jitsi joined');
+            console.log('✅ Game Jitsi joined successfully');
+            clearTimeout(joinTimeout);
             hideGameJitsiLoading();
             
-            // Enable tile view
+            // Enable tile view for individual cameras
             setTimeout(() => {
-                gameJitsiApi.executeCommand('setTileView', true);
+                if (gameJitsiApi) {
+                    gameJitsiApi.executeCommand('setTileView', true);
+                    console.log('🔲 Game tile view enabled');
+                }
+            }, 1000);
+        });
+        
+        gameJitsiApi.addEventListener('participantJoined', (participant) => {
+            console.log('👤 Participant joined game view:', participant);
+            // Ensure tile view stays enabled
+            setTimeout(() => {
+                if (gameJitsiApi) {
+                    gameJitsiApi.executeCommand('setTileView', true);
+                }
             }, 500);
         });
         
-        gameJitsiApi.addEventListener('participantJoined', () => {
-            // Ensure tile view stays enabled
-            setTimeout(() => {
-                gameJitsiApi.executeCommand('setTileView', true);
-            }, 300);
+        gameJitsiApi.addEventListener('participantLeft', (participant) => {
+            console.log('👋 Participant left game view:', participant);
         });
+        
+        gameJitsiApi.addEventListener('readyToClose', () => {
+            console.log('🚪 Game Jitsi ready to close');
+            clearTimeout(joinTimeout);
+        });
+        
+        gameJitsiApi.addEventListener('error', (error) => {
+            console.error('❌ Game Jitsi error:', error);
+            clearTimeout(joinTimeout);
+            showGameJitsiError('Verbindungsfehler: ' + (error.message || 'Unbekannt'));
+        });
+        
+        console.log('🎮 Game Jitsi API instance created');
         
     } catch (error) {
         console.error('❌ Error initializing game Jitsi:', error);
-        showGameJitsiError();
+        showGameJitsiError('Initialisierungsfehler: ' + error.message);
     }
 }
 
@@ -110,16 +158,52 @@ function hideGameJitsiLoading() {
     }
 }
 
-function showGameJitsiError() {
+function showGameJitsiError(message = 'Kamera-Fehler') {
+    console.error('❌ Game Jitsi Error:', message);
     const loading = document.getElementById('game-jitsi-loading');
     if (loading) {
         loading.innerHTML = `
-            <div style="color: #dc3545;">
+            <div style="color: #dc3545; text-align: center;">
                 <div style="font-size: 16px; margin-bottom: 5px;">❌</div>
-                <div style="font-size: 11px;">Kamera-Fehler</div>
+                <div style="font-size: 11px;">${message}</div>
+                <div style="font-size: 10px; margin-top: 5px; color: #888;">
+                    <button onclick="retryGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">🔄 Erneut versuchen</button>
+                </div>
             </div>
         `;
     }
+}
+
+// Retry function for game Jitsi
+function retryGameJitsi() {
+    console.log('🔄 Retrying game Jitsi initialization...');
+    
+    // Clean up existing instance
+    if (gameJitsiApi) {
+        try {
+            gameJitsiApi.dispose();
+        } catch (e) {
+            console.warn('Warning disposing game Jitsi:', e);
+        }
+        gameJitsiApi = null;
+    }
+    
+    // Reset loading state
+    const loading = document.getElementById('game-jitsi-loading');
+    if (loading) {
+        loading.style.display = 'flex';
+        loading.innerHTML = `
+            <div>
+                <div style="font-size: 16px; margin-bottom: 5px;">🔄</div>
+                <div style="font-size: 11px;">Erneut verbinden...</div>
+            </div>
+        `;
+    }
+    
+    // Try again after short delay
+    setTimeout(() => {
+        initializeGameJitsi();
+    }, 2000);
 }
 
 // Cleanup game Jitsi
@@ -241,10 +325,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize game interface
     initializeGame();
     
-    // Initialize Jitsi tiles for game
+    // Initialize Jitsi tiles for game - wait for DOM and lobby to be ready
     setTimeout(() => {
+        console.log('🎮 Starting game Jitsi initialization...');
         initializeGameJitsi();
-    }, 2000); // Wait for lobby Jitsi to be ready
+    }, 3000); // Wait for lobby Jitsi to be established first
     
     // DOM elements
     const questionModal = document.getElementById('questionModal');
