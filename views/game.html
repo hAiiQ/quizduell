@@ -5,6 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeopardy - Game</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* 5-Kamera Reihen-Layout für Game */
+        .game-cameras-section {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #444;
+        }
+        
+        .cameras-row {
+            width: 100%;
+            height: 300px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid #333;
+        }
+        
+        /* Jitsi Container für horizontale 5er-Reihe */
+        .cameras-row iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 10px;
+        }
+        
+        .cameras-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            z-index: 10;
+        }
+        
+        .loading-content {
+            text-align: center;
+            color: #ccc;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #0066cc;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Kamera-Kontrollen */
+        .cameras-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 15px;
+            padding: 10px;
+            background: #333;
+            border-radius: 8px;
+        }
+        
+        .camera-control-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .camera-control-btn:hover {
+            background: #0052a3;
+            transform: translateY(-1px);
+        }
+        
+        .camera-control-btn.active {
+            background: #28a745;
+        }
+        
+        .camera-control-btn.muted {
+            background: #dc3545;
+        }
+        
+        /* Kamera-Status */
+        .cameras-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #333;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #ccc;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status-dot.connecting {
+            background: #FFC107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-dot.connected {
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.error {
+            background: #F44336;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .cameras-info {
+            font-size: 11px;
+            color: #888;
+        }
+        
+        /* Responsive Design für kleinere Bildschirme */
+        @media (max-width: 1200px) {
+            .cameras-row {
+                height: 250px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cameras-row {
+                height: 200px;
+            }
+            
+            .cameras-controls {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .camera-control-btn {
+                font-size: 10px;
+                padding: 8px 12px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="game-container">
@@ -64,20 +229,54 @@
             </div>
         </div>
 
-        <!-- Jitsi Tiles in Game -->
-        <div class="game-jitsi-section">
-            <h4 style="color: #ccc; margin-bottom: 8px; font-size: 13px;">📹 Spieler Kameras</h4>
-            <div id="game-jitsi-container" style="width: 100%; height: 200px; background: #1a1a1a; border-radius: 8px; overflow: hidden; border: 2px solid #333;">
-                <!-- Jitsi will be embedded here in compact mode -->
-                <div id="game-jitsi-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
-                    <div>
-                        <div style="font-size: 16px; margin-bottom: 5px;">📹</div>
-                        <div style="font-size: 11px;">Kameras laden...</div>
+        <!-- Prominente 5-Kamera Reihe im Spiel -->
+        <div class="game-cameras-section">
+            <div class="cameras-header">
+                <h3 style="color: #fff; margin: 0 0 15px 0; font-size: 18px; text-align: center;">
+                    📹 Spieler Kameras
+                    <span id="camera-participant-count" style="background: #0066cc; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px;">0/5</span>
+                </h3>
+            </div>
+            
+            <!-- Hauptkamera-Container für 5er Reihe -->
+            <div id="game-jitsi-container" class="cameras-row">
+                <!-- Jitsi wird hier mit horizontaler 5-Kamera-Konfiguration eingebettet -->
+                <div id="game-jitsi-loading" class="cameras-loading">
+                    <div class="loading-content">
+                        <div style="font-size: 48px; margin-bottom: 15px; color: #666;">📹</div>
+                        <div style="font-size: 20px; margin-bottom: 10px; color: #ccc;">Kameras werden geladen...</div>
+                        <div style="font-size: 14px; color: #888; margin-bottom: 15px;">
+                            Alle 5 Spieler-Kameras erscheinen in einer Reihe
+                        </div>
+                        <div class="loading-spinner"></div>
+                        <div style="font-size: 12px; color: #666; margin-top: 10px;">Jitsi Meet wird initialisiert...</div>
                     </div>
                 </div>
             </div>
-            <div style="text-align: center; margin-top: 5px;">
-                <button id="game-toggle-jitsi" onclick="toggleGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;">📹 Ein/Aus</button>
+            
+            <!-- Kamera-Kontrollen -->
+            <div class="cameras-controls">
+                <button id="game-toggle-camera" class="camera-control-btn" title="Kamera ein/aus">
+                    📹 Kamera
+                </button>
+                <button id="game-toggle-audio" class="camera-control-btn" title="Mikrofon ein/aus">
+                    🎤 Mikrofon  
+                </button>
+                <button id="game-force-tiles" class="camera-control-btn active" title="5er-Reihe erzwingen">
+                    🔲 5er-Reihe
+                </button>
+                <button id="game-fullscreen-cameras" class="camera-control-btn" title="Kameras vergrößern">
+                    ⛶ Vollbild
+                </button>
+            </div>
+            
+            <!-- Kamera-Status Info -->
+            <div class="cameras-status">
+                <div id="cameras-status-indicator" class="status-dot connecting"></div>
+                <span id="cameras-status-text">Verbinde mit Video-Chat...</span>
+                <div class="cameras-info">
+                    <span style="font-size: 11px; color: #888;">Raum: jeopardy-game-<span id="game-room-code"></span></span>
+                </div>
             </div>
         </div>
 

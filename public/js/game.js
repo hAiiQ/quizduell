@@ -10,9 +10,9 @@ let playerStreams = new Map();
 let gameJitsiApi = null;
 let gameJitsiVisible = true;
 
-// Initialize game Jitsi
+// Initialize game Jitsi - Optimiert für 5-Kamera Reihen-Layout
 function initializeGameJitsi() {
-    console.log('🎥 Initializing Jitsi for game view');
+    console.log('🎥 Initializing 5-Camera Row Jitsi for game view');
     
     const gameData = JSON.parse(sessionStorage.getItem('gameData') || '{}');
     const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
@@ -36,103 +36,226 @@ function initializeGameJitsi() {
         return;
     }
     
-    const jitsiRoomName = `jeopardy-lobby-${lobbyId}`;
-    console.log(`🎮 Initializing game Jitsi for room: ${jitsiRoomName}`);
+    const jitsiRoomName = `jeopardy-game-${lobbyId}`;
+    console.log(`🎮 Initializing 5-Camera Game Jitsi for room: ${jitsiRoomName}`);
     
-    // Show loading state
-    const loadingElement = document.getElementById('game-jitsi-loading');
-    if (loadingElement) {
-        loadingElement.innerHTML = `
-            <div>
-                <div style="font-size: 16px; margin-bottom: 5px;">🔄</div>
-                <div style="font-size: 11px;">Jitsi wird geladen...</div>
-            </div>
-        `;
+    // Update room code display
+    const roomCodeElement = document.getElementById('game-room-code');
+    if (roomCodeElement) {
+        roomCodeElement.textContent = lobbyId;
     }
     
+    // Update status
+    updateCameraStatus('connecting', 'Verbinde mit Video-Chat...');
+    
     try {
-        // Create compact Jitsi API instance for game  
+        // Konfiguration speziell für 5-Kamera horizontale Reihe
         gameJitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
             roomName: jitsiRoomName,
             parentNode: jitsiContainer,
             width: '100%',
             height: '100%',
             configOverwrite: {
-                startWithAudioMuted: true, // Muted in game by default
+                startWithAudioMuted: true, // Standardmäßig stumm im Spiel
                 startWithVideoMuted: false,
                 enableWelcomePage: false,
                 prejoinPageEnabled: false,
                 disableInviteFunctions: true,
-                doNotStoreRoom: true
+                doNotStoreRoom: true,
+                enableNoisyMicDetection: false,
+                
+                // Optimiert für 5-Kamera-Reihe
+                defaultLocalDisplayName: playerData.name || 'Spieler',
+                enableLayerSuspension: true
             },
             interfaceConfigOverwrite: {
-                TOOLBAR_BUTTONS: ['microphone', 'camera'], // Minimal toolbar for game
-                SETTINGS_SECTIONS: [],
+                TOOLBAR_BUTTONS: ['microphone', 'camera', 'fullscreen'],
+                SETTINGS_SECTIONS: ['devices'],
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
                 SHOW_BRAND_WATERMARK: false,
+                BRAND_WATERMARK_LINK: '',
                 SHOW_POWERED_BY: false,
+                APP_NAME: 'Jeopardy Game',
                 DEFAULT_BACKGROUND: '#1a1a1a',
-                TILE_VIEW_MAX_COLUMNS: 4,
+                
+                // KRITISCH: 5 Spalten für horizontale Reihe
+                TILE_VIEW_MAX_COLUMNS: 5,
                 FILMSTRIP_ENABLED: true,
+                VERTICAL_FILMSTRIP: false,
+                
+                // Verstecke UI-Elemente für saubere Anzeige
+                HIDE_INVITE_MORE_HEADER: true,
                 INITIAL_TOOLBAR_TIMEOUT: 20000,
-                TOOLBAR_TIMEOUT: 4000
+                TOOLBAR_TIMEOUT: 4000,
+                
+                // Disable störende Indikatoren
+                DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+                DISABLE_FOCUS_INDICATOR: false,
+                DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+                DISABLE_PRESENCE_STATUS: true
             },
             userInfo: {
                 displayName: playerData.isAdmin ? `👑 ${playerData.name}` : `👤 ${playerData.name}`
             }
         });
         
-        // Setup game Jitsi event listeners with timeout fallback
+        // Setup game Jitsi event listeners mit verbesserter 5-Kamera Logik
+        let participantCount = 0;
         const joinTimeout = setTimeout(() => {
-            console.warn('⏰ Jitsi join timeout');
+            console.warn('⏰ Jitsi join timeout - 5 Kamera Setup');
             showGameJitsiError('Verbindung dauert zu lange');
-        }, 10000);
+        }, 15000);
         
         gameJitsiApi.addEventListener('videoConferenceJoined', () => {
-            console.log('✅ Game Jitsi joined successfully');
+            console.log('✅ 5-Camera Game Jitsi joined successfully');
             clearTimeout(joinTimeout);
             hideGameJitsiLoading();
+            updateCameraStatus('connected', 'Video-Chat aktiv');
             
-            // Enable tile view for individual cameras
+            // Erzwinge 5-Kamera Kachel-Ansicht
             setTimeout(() => {
-                if (gameJitsiApi) {
-                    gameJitsiApi.executeCommand('setTileView', true);
-                    console.log('🔲 Game tile view enabled');
-                }
+                enforce5CameraTileView();
             }, 1000);
         });
         
         gameJitsiApi.addEventListener('participantJoined', (participant) => {
-            console.log('👤 Participant joined game view:', participant);
-            // Ensure tile view stays enabled
+            participantCount++;
+            console.log(`👤 Participant joined 5-camera game: ${participant.displayName} (${participantCount} total)`);
+            updateParticipantCount(participantCount + 1); // +1 for self
+            
+            // Erzwinge 5-Kamera-Reihe bei jedem neuen Teilnehmer
             setTimeout(() => {
-                if (gameJitsiApi) {
-                    gameJitsiApi.executeCommand('setTileView', true);
-                }
-            }, 500);
+                enforce5CameraTileView();
+            }, 800);
         });
         
         gameJitsiApi.addEventListener('participantLeft', (participant) => {
-            console.log('👋 Participant left game view:', participant);
+            participantCount = Math.max(0, participantCount - 1);
+            console.log(`👋 Participant left 5-camera game: ${participant.displayName} (${participantCount} remaining)`);
+            updateParticipantCount(participantCount + 1); // +1 for self
         });
         
         gameJitsiApi.addEventListener('readyToClose', () => {
-            console.log('🚪 Game Jitsi ready to close');
+            console.log('🚪 5-Camera Game Jitsi ready to close');
             clearTimeout(joinTimeout);
         });
         
         gameJitsiApi.addEventListener('error', (error) => {
-            console.error('❌ Game Jitsi error:', error);
+            console.error('❌ 5-Camera Game Jitsi error:', error);
             clearTimeout(joinTimeout);
+            updateCameraStatus('error', 'Verbindungsfehler');
             showGameJitsiError('Verbindungsfehler: ' + (error.message || 'Unbekannt'));
         });
         
-        console.log('🎮 Game Jitsi API instance created');
+        console.log('🎮 5-Camera Game Jitsi API instance created');
         
     } catch (error) {
-        console.error('❌ Error initializing game Jitsi:', error);
+        console.error('❌ Error initializing 5-camera game Jitsi:', error);
+        updateCameraStatus('error', 'Initialisierungsfehler');
         showGameJitsiError('Initialisierungsfehler: ' + error.message);
+    }
+}
+
+// Erzwinge 5-Kamera Kachel-Ansicht (Zentrale Funktion)
+function enforce5CameraTileView() {
+    if (!gameJitsiApi) return;
+    
+    try {
+        // Setze Kachel-Ansicht mit 5 Spalten
+        gameJitsiApi.executeCommand('setTileView', true);
+        
+        // Zusätzliche Kommandos für optimale 5er-Reihe
+        setTimeout(() => {
+            if (gameJitsiApi) {
+                // Force 5 columns layout
+                gameJitsiApi.executeCommand('setTileViewDimensions', { columns: 5, rows: 1 });
+            }
+        }, 200);
+        
+        console.log('🔲 5-Camera tile view enforced');
+        
+        // Update UI
+        const tileBtn = document.getElementById('game-force-tiles');
+        if (tileBtn) {
+            tileBtn.classList.add('active');
+        }
+        
+    } catch (error) {
+        console.warn('⚠️ Error enforcing 5-camera tile view:', error);
+    }
+}
+
+// Neue Kamera-Kontroll-Funktionen
+function toggleGameCamera() {
+    if (!gameJitsiApi) return;
+    
+    try {
+        gameJitsiApi.executeCommand('toggleVideo');
+        
+        const btn = document.getElementById('game-toggle-camera');
+        if (btn) {
+            btn.classList.toggle('muted');
+            console.log('📹 Game camera toggled');
+        }
+    } catch (error) {
+        console.error('❌ Error toggling game camera:', error);
+    }
+}
+
+function toggleGameAudio() {
+    if (!gameJitsiApi) return;
+    
+    try {
+        gameJitsiApi.executeCommand('toggleAudio');
+        
+        const btn = document.getElementById('game-toggle-audio');
+        if (btn) {
+            btn.classList.toggle('muted');
+            console.log('🎤 Game audio toggled');
+        }
+    } catch (error) {
+        console.error('❌ Error toggling game audio:', error);
+    }
+}
+
+function fullscreenGameCameras() {
+    if (!gameJitsiApi) return;
+    
+    try {
+        const container = document.getElementById('game-jitsi-container');
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        }
+        
+        console.log('⛶ Game cameras fullscreen requested');
+    } catch (error) {
+        console.error('❌ Error requesting fullscreen:', error);
+    }
+}
+
+// Status-Update-Funktionen
+function updateCameraStatus(status, text) {
+    const indicator = document.getElementById('cameras-status-indicator');
+    const statusText = document.getElementById('cameras-status-text');
+    
+    if (indicator) {
+        indicator.className = `status-dot ${status}`;
+    }
+    
+    if (statusText) {
+        statusText.textContent = text;
+    }
+}
+
+function updateParticipantCount(count) {
+    const countElement = document.getElementById('camera-participant-count');
+    if (countElement) {
+        countElement.textContent = `${count}/5`;
     }
 }
 
@@ -163,14 +286,16 @@ function showGameJitsiError(message = 'Kamera-Fehler') {
     const loading = document.getElementById('game-jitsi-loading');
     if (loading) {
         loading.innerHTML = `
-            <div style="color: #dc3545; text-align: center;">
-                <div style="font-size: 16px; margin-bottom: 5px;">❌</div>
-                <div style="font-size: 11px;">${message}</div>
-                <div style="font-size: 10px; margin-top: 5px; color: #888;">
-                    <button onclick="retryGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">🔄 Erneut versuchen</button>
-                </div>
+            <div class="loading-content">
+                <div style="font-size: 36px; margin-bottom: 10px; color: #dc3545;">❌</div>
+                <div style="font-size: 16px; color: #dc3545; margin-bottom: 8px;">Kamera-Fehler</div>
+                <div style="font-size: 12px; color: #888; margin-bottom: 15px;">${message}</div>
+                <button onclick="retryGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 12px;">
+                    🔄 Erneut versuchen
+                </button>
             </div>
         `;
+        loading.style.display = 'flex';
     }
 }
 
@@ -327,9 +452,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize Jitsi tiles for game - wait for DOM and lobby to be ready
     setTimeout(() => {
-        console.log('🎮 Starting game Jitsi initialization...');
+        console.log('🎮 Starting 5-camera game Jitsi initialization...');
         initializeGameJitsi();
-    }, 3000); // Wait for lobby Jitsi to be established first
+    }, 2000); // Reduced delay since no lobby Jitsi conflict
+    
+    // Setup new 5-camera control buttons
+    const gameCameraBtn = document.getElementById('game-toggle-camera');
+    const gameAudioBtn = document.getElementById('game-toggle-audio');
+    const forceTilesBtn = document.getElementById('game-force-tiles');
+    const fullscreenBtn = document.getElementById('game-fullscreen-cameras');
+    
+    if (gameCameraBtn) {
+        gameCameraBtn.addEventListener('click', toggleGameCamera);
+    }
+    
+    if (gameAudioBtn) {
+        gameAudioBtn.addEventListener('click', toggleGameAudio);
+    }
+    
+    if (forceTilesBtn) {
+        forceTilesBtn.addEventListener('click', () => {
+            enforce5CameraTileView();
+            console.log('🔲 Manual 5-camera tile view trigger');
+        });
+    }
+    
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', fullscreenGameCameras);
+    }
     
     // DOM elements
     const questionModal = document.getElementById('questionModal');
