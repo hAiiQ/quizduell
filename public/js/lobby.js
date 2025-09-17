@@ -201,21 +201,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const remoteVideos = document.getElementById('remoteVideos');
         remoteVideos.innerHTML = '';
         
+        console.log('🎥 Updating video display:', data);
+        
         // Show admin video if current user is not admin
         const currentPlayerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
-        if (!currentPlayerData.isAdmin) {
+        console.log('Current player:', currentPlayerData);
+        
+        if (!currentPlayerData.isAdmin && data.admin) {
+            console.log('Adding admin video container:', data.admin);
             const adminContainer = createVideoContainer(data.admin.name, data.admin.cameraActive, data.admin.id);
             remoteVideos.appendChild(adminContainer);
         }
         
         // Show other players videos
-        data.players.forEach((player, index) => {
-            // Don't show own video in remote section
-            if (player.name !== currentPlayerData.name) {
-                const playerContainer = createVideoContainer(player.name, player.cameraActive, player.id);
-                remoteVideos.appendChild(playerContainer);
-            }
-        });
+        if (data.players && data.players.length > 0) {
+            data.players.forEach((player, index) => {
+                console.log(`Checking player ${index}:`, player);
+                // Don't show own video in remote section
+                if (player.name !== currentPlayerData.name) {
+                    console.log('Adding player video container:', player);
+                    const playerContainer = createVideoContainer(player.name, player.cameraActive, player.id);
+                    remoteVideos.appendChild(playerContainer);
+                }
+            });
+        }
+        
+        console.log('Video containers created:', remoteVideos.children.length);
     }
     
     function createVideoContainer(playerName, cameraActive, playerId) {

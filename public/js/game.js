@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize game interface
     initializeGame();
-    setupWebcam();
+    // setupWebcam(); // Disabled - causes camera conflicts
     
     // DOM elements
     const questionModal = document.getElementById('questionModal');
