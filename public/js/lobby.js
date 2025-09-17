@@ -224,13 +224,13 @@ document.addEventListener('DOMContentLoaded', function() {
         container.setAttribute('data-player-id', playerId);
         
         const videoElement = cameraActive ? 
-            '<img class="video-stream webcam-preview" src="" alt="Video Stream" style="display: block;">' :
+            '<img class="video-stream webcam-preview" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjI0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2NjYyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPvCfk7kgTGl2ZSBWaWRlbzwvdGV4dD48L3N2Zz4=" alt="Video Stream" style="display: block;">' :
             '<div class="video-placeholder">📷<br>Kamera aus</div>';
         
         container.innerHTML = `
             ${videoElement}
             <div class="video-label">${playerName}</div>
-            <div class="video-status">${cameraActive ? 'Kamera an' : 'Kamera aus'}</div>
+            <div class="video-status">${cameraActive ? 'Live-Stream' : 'Kamera aus'}</div>
         `;
         
         return container;
@@ -248,19 +248,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         videoCaptureInterval = setInterval(() => {
             if (localStream && localVideo.videoWidth > 0) {
-                // Draw current video frame to canvas
-                ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
-                
-                // Convert to base64 image
-                const imageData = canvas.toDataURL('image/jpeg', 0.6);
-                
-                // Send to server
-                socket.emit('videoFrame', {
-                    image: imageData,
-                    timestamp: Date.now()
-                });
+                try {
+                    // Draw current video frame to canvas
+                    ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to base64 image
+                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // Send to server
+                    socket.emit('videoFrame', {
+                        image: imageData,
+                        timestamp: Date.now()
+                    });
+                    
+                    console.log('Video frame sent successfully');
+                } catch (error) {
+                    console.error('Error capturing video frame:', error);
+                }
+            } else {
+                console.log('Waiting for video to be ready...');
             }
-        }, 1000); // Send frame every second (low frequency to avoid overload)
+        }, 100); // Send frame every 100ms = 10 FPS
     }
     
     function stopVideoCapture() {
@@ -274,6 +282,8 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('videoFrame', function(data) {
         const { playerId, playerName, image } = data;
         
+        console.log(`Received video frame from ${playerName}`);
+        
         // Find the video container for this player
         const remoteVideos = document.getElementById('remoteVideos');
         let videoContainer = remoteVideos.querySelector(`[data-player-id="${playerId}"]`);
@@ -282,7 +292,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const imgElement = videoContainer.querySelector('.video-stream');
             if (imgElement) {
                 imgElement.src = image;
+                imgElement.style.display = 'block';
+                
+                // Update status
+                const statusElement = videoContainer.querySelector('.video-status');
+                if (statusElement) {
+                    statusElement.textContent = 'Live-Stream aktiv';
+                    statusElement.style.color = '#28a745';
+                }
             }
+        } else {
+            console.log(`No video container found for player ${playerName} (${playerId})`);
         }
     });
 
