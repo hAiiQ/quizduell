@@ -29,9 +29,20 @@
             </div>
             
             <div class="webcam-section">
-                <h3>Webcam-Test</h3>
-                <video id="localVideo" autoplay muted playsinline class="webcam-preview"></video>
-                <button id="toggleCameraBtn">Kamera aktivieren</button>
+                <h3>Webcam-Vorschau</h3>
+                <div class="video-grid">
+                    <!-- Local player video -->
+                    <div class="video-container">
+                        <video id="localVideo" autoplay muted playsinline class="webcam-preview"></video>
+                        <div class="video-label">Du</div>
+                        <button id="toggleCameraBtn">Kamera aktivieren</button>
+                    </div>
+                    
+                    <!-- Other players videos -->
+                    <div id="remoteVideos" class="remote-videos">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
             </div>
             
             <div class="lobby-actions" id="adminActions" style="display: none;">

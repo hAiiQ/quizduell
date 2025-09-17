@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleCameraBtn.textContent = 'Kamera deaktivieren';
                 toggleCameraBtn.style.background = '#dc3545';
                 
+                // Notify server about camera activation
+                socket.emit('toggleCamera', true);
+                
                 console.log('Camera activated successfully');
             } catch (error) {
                 console.error('Camera access error:', error);
@@ -91,6 +94,9 @@ document.addEventListener('DOMContentLoaded', function() {
             localVideo.style.display = 'none';
             toggleCameraBtn.textContent = 'Kamera aktivieren';
             toggleCameraBtn.style.background = '#28a745';
+            
+            // Notify server about camera deactivation
+            socket.emit('toggleCamera', false);
             
             console.log('Camera deactivated');
         }
@@ -129,6 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     socket.on('playersUpdate', function(data) {
         updatePlayersDisplay(data);
+        updateVideoDisplay(data);
     });
 
     socket.on('gameStarted', function(data) {
@@ -181,6 +188,44 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isAdmin) {
             startGameBtn.disabled = data.players.length === 0;
         }
+    }
+
+    function updateVideoDisplay(data) {
+        const remoteVideos = document.getElementById('remoteVideos');
+        remoteVideos.innerHTML = '';
+        
+        // Show admin video if current user is not admin
+        const currentPlayerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
+        if (!currentPlayerData.isAdmin) {
+            const adminContainer = createVideoContainer(data.admin.name, data.admin.cameraActive);
+            remoteVideos.appendChild(adminContainer);
+        }
+        
+        // Show other players videos
+        data.players.forEach((player, index) => {
+            // Don't show own video in remote section
+            if (player.name !== currentPlayerData.name) {
+                const playerContainer = createVideoContainer(player.name, player.cameraActive);
+                remoteVideos.appendChild(playerContainer);
+            }
+        });
+    }
+    
+    function createVideoContainer(playerName, cameraActive) {
+        const container = document.createElement('div');
+        container.className = 'video-container';
+        
+        const videoElement = cameraActive ? 
+            '<div class="video-placeholder">📹<br>Kamera aktiv</div>' :
+            '<div class="video-placeholder">📷<br>Kamera aus</div>';
+        
+        container.innerHTML = `
+            ${videoElement}
+            <div class="video-label">${playerName}</div>
+            <div class="video-status">${cameraActive ? 'Kamera an' : 'Kamera aus'}</div>
+        `;
+        
+        return container;
     }
 
     // Handle page unload

@@ -160,6 +160,7 @@ io.on('connection', (socket) => {
       id: lobbyId,
       admin: socket.id,
       adminName: playerName,
+      adminCameraActive: false,
       players: [],
       gameState: 'lobby', // lobby, playing, finished
       currentRound: 1,
@@ -219,7 +220,7 @@ io.on('connection', (socket) => {
         console.log(`Player ${playerName} reconnected to lobby ${lobbyId}`);
       } else {
         // Add new player
-        lobby.players.push({ id: socket.id, name: playerName, score: 0 });
+        lobby.players.push({ id: socket.id, name: playerName, score: 0, cameraActive: false });
         console.log(`New player ${playerName} joined lobby ${lobbyId}`);
       }
       lobby.scores[socket.id] = lobby.scores[socket.id] || 0;
@@ -231,7 +232,7 @@ io.on('connection', (socket) => {
     
     // Update all players in lobby
     io.to(lobbyId).emit('playersUpdate', {
-      admin: { id: lobby.admin, name: lobby.adminName },
+      admin: { id: lobby.admin, name: lobby.adminName, cameraActive: lobby.adminCameraActive || false },
       players: lobby.players
     });
     
@@ -282,6 +283,34 @@ io.on('connection', (socket) => {
     });
     
     console.log(`${playerName} joined lobby ${lobbyId}`);
+  });
+
+  // Toggle camera status
+  socket.on('toggleCamera', (cameraActive) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    
+    const lobby = lobbies.get(player.lobbyId);
+    if (!lobby) return;
+    
+    if (player.isAdmin) {
+      // Update admin camera status
+      lobby.adminCameraActive = cameraActive;
+    } else {
+      // Update player camera status
+      const playerObj = lobby.players.find(p => p.id === socket.id);
+      if (playerObj) {
+        playerObj.cameraActive = cameraActive;
+      }
+    }
+    
+    // Notify all players in lobby about camera status update
+    io.to(player.lobbyId).emit('playersUpdate', {
+      admin: { id: lobby.admin, name: lobby.adminName, cameraActive: lobby.adminCameraActive || false },
+      players: lobby.players
+    });
+    
+    console.log(`${player.name} ${cameraActive ? 'activated' : 'deactivated'} camera in lobby ${player.lobbyId}`);
   });
 
   // Start game
