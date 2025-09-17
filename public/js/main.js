@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle lobby joined
-    socket.on('joinedLobby', function(data) {
+    socket.on('lobbyJoined', function(data) {
         console.log('Joined lobby:', data);
         
         // Store player data immediately
