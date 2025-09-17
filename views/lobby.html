@@ -30,22 +30,34 @@
             
             <div class="webcam-section">
                 <h3>Video-Konferenz</h3>
-                <div class="whereby-container">
-                    <div id="whereby-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
-                        <iframe 
-                            id="wherebyFrame"
-                            style="width: 100%; height: 100%; border: none; border-radius: 10px;"
-                            allow="camera; microphone; fullscreen; display-capture; autoplay">
-                        </iframe>
-                        <div id="loadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
-                            <div>📹 Lade Video-Chat...</div>
-                            <div style="font-size: 14px; margin-top: 10px;">Raum: <span id="wherebyRoomName"></span></div>
+                <div class="jitsi-container">
+                    <!-- Main Jitsi container with multiple fallback layers -->
+                    <div id="jitsi-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
+                        <!-- Loading indicator -->
+                        <div id="jitsi-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center; z-index: 10;">
+                            <div>📹 Initialisiere Video-Chat...</div>
+                            <div style="font-size: 14px; margin-top: 10px;">Raum: <span id="jitsiRoomName"></span></div>
+                            <div style="margin-top: 15px;">
+                                <div class="loading-spinner" style="border: 3px solid #555; border-top: 3px solid #0066cc; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                            </div>
                         </div>
+                        
+                        <!-- Fallback iframe (hidden initially) -->
+                        <iframe id="jitsi-iframe-fallback" 
+                                style="width: 100%; height: 100%; border: none; border-radius: 10px; display: none;"
+                                allow="camera; microphone; fullscreen; display-capture">
+                        </iframe>
                     </div>
-                    <div class="whereby-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
-                        Powered by Whereby - Sofortiger Video-Chat<br>
-                        <div style="margin-top: 5px;">
-                            <a id="directWherebyLink" href="#" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📹 In neuem Tab öffnen</a>
+                    
+                    <!-- Control buttons and info -->
+                    <div class="jitsi-controls" style="margin-top: 10px; text-align: center;">
+                        <div style="margin-bottom: 10px;">
+                            <button id="jitsi-retry-btn" onclick="retryJitsiLoad()" style="padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">🔄 Erneut laden</button>
+                            <button id="jitsi-iframe-btn" onclick="useJitsiIframe()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">📺 Iframe-Modus</button>
+                        </div>
+                        <div class="jitsi-info" style="color: #ccc; font-size: 14px;">
+                            Powered by Jitsi Meet - Professioneller Video-Chat<br>
+                            <a id="directJitsiLink" href="#" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📹 In neuem Tab öffnen</a>
                         </div>
                     </div>
                 </div>
@@ -59,8 +71,47 @@
         </div>
     </div>
 
+    <!-- CSS for loading spinner -->
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .jitsi-controls button {
+            transition: background-color 0.3s ease;
+        }
+        .jitsi-controls button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .jitsi-controls button:disabled {
+            background: #666 !important;
+            cursor: not-allowed;
+        }
+    </style>
+    
     <script src="/socket.io/socket.io.js"></script>
-
+    <!-- Load Jitsi Meet API with error handling -->
+    <script>
+        let jitsiApiLoaded = false;
+        const jitsiScript = document.createElement('script');
+        jitsiScript.src = 'https://meet.jit.si/external_api.js';
+        jitsiScript.onload = function() {
+            console.log('✅ Jitsi Meet API loaded successfully');
+            jitsiApiLoaded = true;
+            if (window.jitsiApiReadyCallback) {
+                window.jitsiApiReadyCallback();
+            }
+        };
+        jitsiScript.onerror = function() {
+            console.warn('⚠️ Jitsi API failed to load, will use iframe fallback');
+            jitsiApiLoaded = false;
+            if (window.jitsiApiErrorCallback) {
+                window.jitsiApiErrorCallback();
+            }
+        };
+        document.head.appendChild(jitsiScript);
+    </script>
     <script src="/js/lobby.js"></script>
 </body>
 </html>
