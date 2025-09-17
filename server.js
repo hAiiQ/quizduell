@@ -118,6 +118,36 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug endpoint to check file system on Render
+app.get('/debug-files', (req, res) => {
+  const fs = require('fs');
+  const debug = {
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    __dirname: __dirname,
+    publicDir: path.join(__dirname, 'public'),
+    viewsDir: path.join(__dirname, 'views'),
+    files: {
+      lobbyJs: fs.existsSync(path.join(__dirname, 'public', 'js', 'lobby.js')),
+      lobbyHtml: fs.existsSync(path.join(__dirname, 'views', 'lobby.html')),
+      mainJs: fs.existsSync(path.join(__dirname, 'public', 'js', 'main.js')),
+      gameCss: fs.existsSync(path.join(__dirname, 'public', 'css', 'game.css'))
+    }
+  };
+  
+  // Try to read lobby.js first few lines
+  try {
+    const lobbyJsContent = fs.readFileSync(path.join(__dirname, 'public', 'js', 'lobby.js'), 'utf8');
+    debug.lobbyJsLength = lobbyJsContent.length;
+    debug.lobbyJsStart = lobbyJsContent.substring(0, 200);
+    debug.lobbyJsHasEventListener = lobbyJsContent.includes('addEventListener');
+  } catch (err) {
+    debug.lobbyJsError = err.message;
+  }
+  
+  res.json(debug);
+});
+
 // Routes
 app.get('/', (req, res) => {
   console.log('Root route accessed');
