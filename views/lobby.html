@@ -29,18 +29,16 @@
             </div>
             
             <div class="webcam-section">
-                <h3>Webcam-Vorschau</h3>
-                <div class="video-grid">
-                    <!-- Local player video -->
-                    <div class="video-container">
-                        <video id="localVideo" autoplay muted playsinline class="webcam-preview"></video>
-                        <div class="video-label">Du</div>
-                        <button id="toggleCameraBtn">Kamera aktivieren</button>
+                <h3>Video-Konferenz</h3>
+                <div class="jitsi-container">
+                    <div id="jitsi-meet" style="height: 400px; width: 100%; background: #333; border-radius: 10px; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; text-align: center;">
+                            <div>📹 Video-Konferenz wird geladen...</div>
+                            <div style="font-size: 14px; margin-top: 10px;">Automatische Raum-Erstellung: <span id="jitsiRoomName"></span></div>
+                        </div>
                     </div>
-                    
-                    <!-- Other players videos -->
-                    <div id="remoteVideos" class="remote-videos">
-                        <!-- Will be populated dynamically -->
+                    <div class="jitsi-info" style="margin-top: 10px; text-align: center; color: #ccc; font-size: 14px;">
+                        Powered by Jitsi Meet - Sicherer Video-Chat
                     </div>
                 </div>
             </div>
@@ -56,6 +54,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
     <script src="/js/lobby.js"></script>
 </body>
 </html>

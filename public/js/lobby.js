@@ -1,18 +1,18 @@
 const socket = io();
 let isAdmin = false;
 let lobbyId = '';
-let localStream = null;
-let videoCaptureInterval = null;
+let jitsiApi = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
     lobbyId = window.location.pathname.split('/').pop();
     document.getElementById('lobbyId').textContent = lobbyId;
+    
+    // Initialize Jitsi Meet
+    initializeJitsi();
 
     const startGameBtn = document.getElementById('startGameBtn');
     const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
-    const toggleCameraBtn = document.getElementById('toggleCameraBtn');
-    const localVideo = document.getElementById('localVideo');
     const adminActions = document.getElementById('adminActions');
 
     // Join the lobby (reconnect)
@@ -33,81 +33,75 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Webcam functionality
-    toggleCameraBtn.addEventListener('click', async function() {
-        if (!localStream) {
-            try {
-                // Check if getUserMedia is available
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('getUserMedia ist in diesem Browser nicht verfügbar');
-                }
-                
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        width: { ideal: 320 },
-                        height: { ideal: 240 },
-                        facingMode: 'user'
-                    }, 
-                    audio: false 
-                });
-                
-                localVideo.srcObject = localStream;
-                localVideo.style.display = 'block';
-                toggleCameraBtn.textContent = 'Kamera deaktivieren';
-                toggleCameraBtn.style.background = '#dc3545';
-                
-                // Notify server about camera activation
-                socket.emit('toggleCamera', true);
-                
-                // Start sending video frames
-                startVideoCapture();
-                
-                console.log('Camera activated successfully');
-            } catch (error) {
-                console.error('Camera access error:', error);
-                
-                let errorMessage = 'Fehler beim Zugriff auf die Kamera.\n\n';
-                
-                switch (error.name) {
-                    case 'NotAllowedError':
-                        errorMessage += 'Kamera-Berechtigung wurde verweigert. Bitte erlaube den Kamera-Zugriff in den Browser-Einstellungen.';
-                        break;
-                    case 'NotFoundError':
-                        errorMessage += 'Keine Kamera gefunden. Stelle sicher, dass eine Kamera angeschlossen ist.';
-                        break;
-                    case 'NotReadableError':
-                        errorMessage += 'Kamera wird bereits von einer anderen Anwendung verwendet.';
-                        break;
-                    case 'OverconstrainedError':
-                        errorMessage += 'Kamera-Einstellungen werden nicht unterstützt.';
-                        break;
-                    case 'SecurityError':
-                        errorMessage += 'Sicherheitsfehler. Stelle sicher, dass die Seite über HTTPS geladen wird.';
-                        break;
-                    default:
-                        errorMessage += `Unbekannter Fehler: ${error.message}`;
-                }
-                
-                alert(errorMessage);
+    // Jitsi Meet initialization
+    function initializeJitsi() {
+        const roomName = `jeopardy-lobby-${lobbyId}`;
+        document.getElementById('jitsiRoomName').textContent = roomName;
+        
+        console.log(`🎥 Initializing Jitsi Meet room: ${roomName}`);
+        
+        const domain = 'meet.jit.si';
+        const options = {
+            roomName: roomName,
+            width: '100%',
+            height: '100%',
+            parentNode: document.querySelector('#jitsi-meet'),
+            configOverwrite: {
+                startWithAudioMuted: true,
+                startWithVideoMuted: false,
+                enableWelcomePage: false,
+                prejoinPageEnabled: false,
+                disableModeratorIndicator: true,
+                startScreenSharing: false,
+                enableEmailInStats: false
+            },
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'chat', 'settings', 'videoquality',
+                    'filmstrip', 'feedback', 'stats', 'shortcuts'
+                ],
+                SETTINGS_SECTIONS: ['devices', 'language'],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                SHOW_BRAND_WATERMARK: false,
+                BRAND_WATERMARK_LINK: "",
+                SHOW_POWERED_BY: false,
+                DISPLAY_WELCOME_PAGE_CONTENT: false,
+                DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
+                APP_NAME: "Jeopardy Video Chat"
             }
-        } else {
-            // Stop camera
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = null;
-            localVideo.srcObject = null;
-            localVideo.style.display = 'none';
-            toggleCameraBtn.textContent = 'Kamera aktivieren';
-            toggleCameraBtn.style.background = '#28a745';
+        };
+        
+        try {
+            jitsiApi = new JitsiMeetExternalAPI(domain, options);
             
-            // Notify server about camera deactivation
-            socket.emit('toggleCamera', false);
+            jitsiApi.addEventListener('videoConferenceJoined', () => {
+                console.log('✅ Successfully joined Jitsi room');
+                const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
+                jitsiApi.executeCommand('displayName', playerData.name || 'Spieler');
+            });
             
-            // Stop video capture
-            stopVideoCapture();
+            jitsiApi.addEventListener('participantJoined', (participant) => {
+                console.log('👥 New participant joined:', participant.displayName);
+            });
             
-            console.log('Camera deactivated');
+            jitsiApi.addEventListener('participantLeft', (participant) => {
+                console.log('👋 Participant left:', participant.displayName);
+            });
+            
+            console.log('🎥 Jitsi Meet initialized successfully');
+            
+        } catch (error) {
+            console.error('❌ Jitsi initialization failed:', error);
+            document.querySelector('#jitsi-meet').innerHTML = `
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff4444; text-align: center;">
+                    <div>❌ Video-Chat konnte nicht geladen werden</div>
+                    <div style="font-size: 12px; margin-top: 10px;">Überprüfe deine Internetverbindung</div>
+                </div>
+            `;
         }
-    });
+    }
 
     // Start game (admin only)
     startGameBtn.addEventListener('click', function() {
@@ -117,9 +111,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Leave lobby
     leaveLobbyBtn.addEventListener('click', function() {
         if (confirm('Möchtest du die Lobby wirklich verlassen?')) {
-            // Stop camera if active
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+            // Disconnect from Jitsi
+            if (jitsiApi) {
+                jitsiApi.dispose();
             }
             
             sessionStorage.removeItem('playerData');
@@ -143,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('playersUpdate', function(data) {
         console.log('🔄 Players update received:', data);
         updatePlayersDisplay(data);
-        updateVideoDisplay(data);
+        // Video display now handled by Jitsi Meet
     });
 
     socket.on('gameStarted', function(data) {
@@ -198,157 +192,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function updateVideoDisplay(data) {
-        const remoteVideos = document.getElementById('remoteVideos');
-        remoteVideos.innerHTML = '';
-        
-        console.log('🎥 Updating video display:', data);
-        
-        // Show admin video if current user is not admin
-        const currentPlayerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
-        console.log('Current player:', currentPlayerData);
-        
-        if (!currentPlayerData.isAdmin && data.admin) {
-            console.log('Adding admin video container:', data.admin);
-            const adminContainer = createVideoContainer(data.admin.name, data.admin.cameraActive, data.admin.id);
-            remoteVideos.appendChild(adminContainer);
-        }
-        
-        // Show other players videos
-        if (data.players && data.players.length > 0) {
-            data.players.forEach((player, index) => {
-                console.log(`Checking player ${index}:`, player);
-                // Don't show own video in remote section
-                if (player.name !== currentPlayerData.name) {
-                    console.log('Adding player video container:', player);
-                    const playerContainer = createVideoContainer(player.name, player.cameraActive, player.id);
-                    remoteVideos.appendChild(playerContainer);
-                }
-            });
-        }
-        
-        console.log('Video containers created:', remoteVideos.children.length);
-    }
-    
-    function createVideoContainer(playerName, cameraActive, playerId) {
-        const container = document.createElement('div');
-        container.className = 'video-container';
-        container.setAttribute('data-player-id', playerId);
-        
-        console.log(`✨ Creating video container for ${playerName} (ID: ${playerId}) - Camera: ${cameraActive}`);
-        
-        // IMMER ein img-Element erstellen, auch wenn Kamera aus ist
-        const videoElement = '<img class="video-stream webcam-preview" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjI0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2NjYyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuKdjOKdlOKdjDwvdGV4dD48L3N2Zz4=" alt="Video Stream" style="display: block;">';
-        
-        const statusText = cameraActive ? '🎥 Live bereit' : '📷 Kamera aus';
-        
-        container.innerHTML = `
-            ${videoElement}
-            <div class="video-label">${playerName}</div>
-            <div class="video-status">${statusText}</div>
-        `;
-        
-        console.log(`✅ Video container created for ${playerName}`);
-        return container;
-    }
-
-    function startVideoCapture() {
-        if (videoCaptureInterval) return;
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const localVideo = document.getElementById('localVideo');
-        
-        canvas.width = 320;
-        canvas.height = 240;
-        
-        videoCaptureInterval = setInterval(() => {
-            if (localStream && localVideo.videoWidth > 0) {
-                try {
-                    // Draw current video frame to canvas
-                    ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
-                    
-                    // Convert to base64 image
-                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    // Send to server
-                    socket.emit('videoFrame', {
-                        image: imageData,
-                        timestamp: Date.now()
-                    });
-                    
-                    console.log('📤 Video frame sent successfully');
-                } catch (error) {
-                    console.error('Error capturing video frame:', error);
-                }
-            } else {
-                console.log('Waiting for video to be ready...');
-            }
-        }, 100); // Send frame every 100ms = 10 FPS
-    }
-    
-    function stopVideoCapture() {
-        if (videoCaptureInterval) {
-            clearInterval(videoCaptureInterval);
-            videoCaptureInterval = null;
-        }
-    }
-
-    // Handle incoming video frames from other players
-    socket.on('videoFrame', function(data) {
-        const { playerId, playerName, image } = data;
-        
-        console.log(`📹 RECEIVED VIDEO FRAME from ${playerName} (ID: ${playerId})`);
-        
-        // Find the video container for this player
-        const remoteVideos = document.getElementById('remoteVideos');
-        let videoContainer = remoteVideos.querySelector(`[data-player-id="${playerId}"]`);
-        
-        console.log(`🔍 Looking for container with player ID: "${playerId}"`);
-        console.log(`🎯 Found container:`, videoContainer);
-        
-        if (videoContainer) {
-            const imgElement = videoContainer.querySelector('.video-stream');
-            console.log(`🖼️ Found img element:`, imgElement);
-            
-            if (imgElement) {
-                imgElement.src = image;
-                imgElement.style.display = 'block';
-                
-                // Update status
-                const statusElement = videoContainer.querySelector('.video-status');
-                if (statusElement) {
-                    statusElement.textContent = '🔴 LIVE';
-                    statusElement.style.color = '#ff4444';
-                    statusElement.style.fontWeight = 'bold';
-                }
-                
-                console.log(`✅ VIDEO FRAME SUCCESSFULLY APPLIED for ${playerName}`);
-            } else {
-                console.log(`❌ NO IMG ELEMENT FOUND in container for ${playerName}`);
-                console.log('Container HTML:', videoContainer.innerHTML);
-            }
-        } else {
-            console.log(`❌ NO VIDEO CONTAINER FOUND for player ${playerName} (${playerId})`);
-            console.log('🔍 All available containers:');
-            const allContainers = remoteVideos.querySelectorAll('[data-player-id]');
-            allContainers.forEach(container => {
-                console.log(`   - Container ID: "${container.getAttribute('data-player-id')}"`);
-            });
-            
-            // Try to create container if missing
-            console.log('🚨 Attempting to create missing container...');
-            const missingContainer = createVideoContainer(playerName, true, playerId);
-            remoteVideos.appendChild(missingContainer);
-            console.log('📦 Emergency container created');
-        }
-    });
-
+    // Video display now handled by Jitsi Meet - no custom functions needed
     // Handle page unload
     window.addEventListener('beforeunload', function() {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
+        // Disconnect from Jitsi
+        if (jitsiApi) {
+            jitsiApi.dispose();
         }
-        stopVideoCapture();
     });
 });
