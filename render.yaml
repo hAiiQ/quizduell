@@ -3,12 +3,13 @@ services:
     name: jeopardy-game
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm ci
+    startCommand: node server.js
     publishDir: .
     healthCheckPath: /health
+    port: 3000
     envVars:
       - key: NODE_ENV
         value: production
-      - key: HOST
-        value: 0.0.0.0
+      - key: PORT
+        value: 3000
