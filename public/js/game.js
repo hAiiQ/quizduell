@@ -12,35 +12,27 @@ let gameJitsiVisible = true;
 
 // Initialize game Jitsi - Optimiert für 5-Kamera Reihen-Layout
 function initializeGameJitsi() {
-    console.log('🎥 Checking Jitsi availability...');
-    
-    // Check if user wants video (optional - game works without)
-    const enableVideo = localStorage.getItem('enableVideo') === 'true';
-    if (!enableVideo) {
-        console.log('📹 Video disabled - game runs without cameras');
-        showVideoDisabled();
-        return;
-    }
+    console.log('🎥 Initializing 5-Camera Row Jitsi for game view');
     
     const gameData = JSON.parse(sessionStorage.getItem('gameData') || '{}');
     const playerData = JSON.parse(sessionStorage.getItem('playerData') || '{}');
     
     if (!lobbyId) {
-        console.log('⚠️ No lobby ID - game runs without video');
-        showVideoDisabled();
+        console.warn('⚠️ No lobby ID for Jitsi initialization');
+        showGameJitsiError('Keine Lobby ID gefunden');
         return;
     }
     
     const jitsiContainer = document.getElementById('game-jitsi-container');
     if (!jitsiContainer) {
-        console.log('⚠️ Video container not found - game runs normally');
+        console.warn('⚠️ Game Jitsi container not found');
         return;
     }
     
     // Check if Jitsi API is available
     if (typeof JitsiMeetExternalAPI === 'undefined') {
-        console.log('📹 Jitsi API not available - game runs without video');
-        showVideoDisabled();
+        console.warn('⚠️ Jitsi API not loaded - continuing without video');
+        showGameJitsiError('Jitsi API nicht verfügbar - Spiel läuft ohne Video');
         return;
     }
     

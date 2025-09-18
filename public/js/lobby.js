@@ -1,16 +1,23 @@
-﻿// Prevent double execution
-if (window.lobbyInitialized) {
-    return;
-}
-window.lobbyInitialized = true;
+(function() {
+    // Prevent double execution
+    if (window.lobbyInitialized) {
+        return;
+    }
+    window.lobbyInitialized = true;
 
-const socket = io();
-let isAdmin = false;
-let lobbyId = '';
+    const socket = io();
+    let isAdmin = false;
+    let lobbyId = '';
 
-// Get lobby ID from URL path
-const pathParts = window.location.pathname.split('/');
-const lobbyCode = pathParts[pathParts.length - 1];
+    // Get lobby ID from URL path
+    const pathParts = window.location.pathname.split('/');
+    const lobbyCode = pathParts[pathParts.length - 1];
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initializeLobby();
+    setupEventHandlers();
+});
 
 function joinLobby(code) {
     const playerData = sessionStorage.getItem('playerData');
@@ -26,6 +33,7 @@ function joinLobby(code) {
     lobbyId = code;
     isAdmin = data.isAdmin || false;
 
+    // Set lobby ID in display
     const lobbyIdElement = document.getElementById('lobbyId');
     if (lobbyIdElement) {
         lobbyIdElement.textContent = code;
@@ -64,63 +72,58 @@ socket.on('error', (error) => {
 
 // Update lobby display
 function updateLobbyDisplay(lobbyData) {
+    // Update admin info
     const adminInfo = document.getElementById('adminInfo');
-    const adminNameElement = adminInfo.querySelector('.player-name');
-    
-    if (lobbyData.admin) {
-        adminNameElement.textContent = lobbyData.admin.name || 'Admin';
+    if (adminInfo) {
+        const adminNameElement = adminInfo.querySelector('.player-name');
+        if (adminNameElement && lobbyData.admin) {
+            adminNameElement.textContent = lobbyData.admin.name || 'Admin';
+        }
     }
     
+    // Update players list
     const playersList = document.getElementById('playersList');
     const playerCount = document.getElementById('playerCount');
     
-    playersList.innerHTML = '';
-    
-    if (lobbyData.players && Array.isArray(lobbyData.players)) {
-        lobbyData.players.forEach(player => {
-            const playerCard = document.createElement('div');
-            playerCard.className = 'player-card';
-            playerCard.innerHTML = '<span class="player-name">' + (player.name || 'Unbekannter Spieler') + '</span>';
-            playersList.appendChild(playerCard);
-        });
+    if (playersList) {
+        playersList.innerHTML = '';
         
-        playerCount.textContent = lobbyData.players.length;
-    } else {
-        playerCount.textContent = '0';
+        if (lobbyData.players && Array.isArray(lobbyData.players)) {
+            lobbyData.players.forEach(player => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                playerCard.innerHTML = '<span class="player-name">' + (player.name || 'Unbekannter Spieler') + '</span>';
+                playersList.appendChild(playerCard);
+            });
+            
+            if (playerCount) {
+                playerCount.textContent = lobbyData.players.length;
+            }
+        } else {
+            if (playerCount) {
+                playerCount.textContent = '0';
+            }
+        }
     }
     
+    // Update admin actions
     const adminActions = document.getElementById('adminActions');
-    if (isAdmin) {
+    if (adminActions && isAdmin) {
         adminActions.style.display = 'block';
         
         const startGameBtn = document.getElementById('startGameBtn');
-        const hasEnoughPlayers = lobbyData.players && lobbyData.players.length >= 1;
-        startGameBtn.disabled = !hasEnoughPlayers;
-        
-        if (hasEnoughPlayers) {
-            startGameBtn.textContent = 'Spiel starten';
-        } else {
-            startGameBtn.textContent = 'Mindestens 1 Spieler benötigt';
+        if (startGameBtn && lobbyData.players) {
+            const hasEnoughPlayers = lobbyData.players.length >= 1;
+            startGameBtn.disabled = !hasEnoughPlayers;
+            
+            if (hasEnoughPlayers) {
+                startGameBtn.textContent = 'Spiel starten';
+            } else {
+                startGameBtn.textContent = 'Mindestens 1 Spieler benötigt';
+            }
         }
     }
 }
-
-// Event handlers
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize lobby after DOM is ready
-    initializeLobby();
-    
-    document.getElementById('startGameBtn').addEventListener('click', function() {
-        if (!isAdmin) return;
-        socket.emit('startGame', { lobbyId });
-    });
-
-    document.getElementById('leaveLobbyBtn').addEventListener('click', function() {
-        socket.emit('leaveLobby', { lobbyId });
-        sessionStorage.removeItem('playerData');
-        window.location.href = '/';
-    });
-});
 
 function initializeLobby() {
     if (lobbyCode && lobbyCode !== 'lobby') {
@@ -162,8 +165,29 @@ function initializeLobby() {
     }
 }
 
-window.addEventListener('beforeunload', () => {
-    if (socket.connected) {
-        socket.emit('leaveLobby', { lobbyId });
+function setupEventHandlers() {
+    const startGameBtn = document.getElementById('startGameBtn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', function() {
+            if (!isAdmin) return;
+            socket.emit('startGame', { lobbyId });
+        });
     }
-});
+
+    const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
+    if (leaveLobbyBtn) {
+        leaveLobbyBtn.addEventListener('click', function() {
+            socket.emit('leaveLobby', { lobbyId });
+            sessionStorage.removeItem('playerData');
+            window.location.href = '/';
+        });
+    }
+}
+
+    window.addEventListener('beforeunload', () => {
+        if (socket.connected) {
+            socket.emit('leaveLobby', { lobbyId });
+        }
+    });
+
+})(); // End of IIFE
