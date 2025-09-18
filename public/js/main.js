@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle lobby created
     socket.on('lobbyCreated', function(data) {
+        console.log('Lobby created:', data);
+        
         // Store player data immediately
         const playerData = {
             name: adminNameInput.value.trim(),
@@ -80,8 +82,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle lobby joined
-    socket.on('lobbyJoined', function(data) {
-        // Store player data immediately  
+    socket.on('joinedLobby', function(data) {
+        console.log('Joined lobby:', data);
+        
+        // Store player data immediately
         const playerData = {
             name: playerNameInput.value.trim(),
             isAdmin: data.isAdmin,

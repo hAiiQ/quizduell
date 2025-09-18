@@ -118,36 +118,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Debug endpoint to check file system on Render
-app.get('/debug-files', (req, res) => {
-  const fs = require('fs');
-  const debug = {
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    __dirname: __dirname,
-    publicDir: path.join(__dirname, 'public'),
-    viewsDir: path.join(__dirname, 'views'),
-    files: {
-      lobbyJs: fs.existsSync(path.join(__dirname, 'public', 'js', 'lobby.js')),
-      lobbyHtml: fs.existsSync(path.join(__dirname, 'views', 'lobby.html')),
-      mainJs: fs.existsSync(path.join(__dirname, 'public', 'js', 'main.js')),
-      gameCss: fs.existsSync(path.join(__dirname, 'public', 'css', 'game.css'))
-    }
-  };
-  
-  // Try to read lobby.js first few lines
-  try {
-    const lobbyJsContent = fs.readFileSync(path.join(__dirname, 'public', 'js', 'lobby.js'), 'utf8');
-    debug.lobbyJsLength = lobbyJsContent.length;
-    debug.lobbyJsStart = lobbyJsContent.substring(0, 200);
-    debug.lobbyJsHasEventListener = lobbyJsContent.includes('addEventListener');
-  } catch (err) {
-    debug.lobbyJsError = err.message;
-  }
-  
-  res.json(debug);
-});
-
 // Routes
 app.get('/', (req, res) => {
   console.log('Root route accessed');
@@ -190,6 +160,7 @@ io.on('connection', (socket) => {
       id: lobbyId,
       admin: socket.id,
       adminName: playerName,
+      adminCameraActive: false,
       players: [],
       gameState: 'lobby', // lobby, playing, finished
       currentRound: 1,
@@ -249,7 +220,7 @@ io.on('connection', (socket) => {
         console.log(`Player ${playerName} reconnected to lobby ${lobbyId}`);
       } else {
         // Add new player
-        lobby.players.push({ id: socket.id, name: playerName, score: 0 });
+        lobby.players.push({ id: socket.id, name: playerName, score: 0, cameraActive: false });
         console.log(`New player ${playerName} joined lobby ${lobbyId}`);
       }
       lobby.scores[socket.id] = lobby.scores[socket.id] || 0;
@@ -257,11 +228,11 @@ io.on('connection', (socket) => {
     }
     
     socket.join(lobbyId);
-    socket.emit('lobbyJoined', { lobbyId, isAdmin, admin: { name: lobby.adminName }, players: lobby.players });
+    socket.emit('joinedLobby', { lobbyId, isAdmin });
     
     // Update all players in lobby
-    io.to(lobbyId).emit('lobbyUpdated', {
-      admin: { id: lobby.admin, name: lobby.adminName },
+    io.to(lobbyId).emit('playersUpdate', {
+      admin: { id: lobby.admin, name: lobby.adminName, cameraActive: lobby.adminCameraActive || false },
       players: lobby.players
     });
     
@@ -303,10 +274,10 @@ io.on('connection', (socket) => {
     players.set(socket.id, { name: playerName, lobbyId, isAdmin: false });
     
     socket.join(lobbyId);
-    socket.emit('lobbyJoined', { lobbyId, isAdmin: false, admin: { name: lobby.adminName }, players: lobby.players });
+    socket.emit('joinedLobby', { lobbyId, isAdmin: false });
     
     // Update all players in lobby
-    io.to(lobbyId).emit('lobbyUpdated', {
+    io.to(lobbyId).emit('playersUpdate', {
       admin: { id: lobby.admin, name: lobby.adminName },
       players: lobby.players
     });
@@ -314,20 +285,74 @@ io.on('connection', (socket) => {
     console.log(`${playerName} joined lobby ${lobbyId}`);
   });
 
+  // Toggle camera status
+  socket.on('toggleCamera', (cameraActive) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    
+    const lobby = lobbies.get(player.lobbyId);
+    if (!lobby) return;
+    
+    if (player.isAdmin) {
+      // Update admin camera status
+      lobby.adminCameraActive = cameraActive;
+    } else {
+      // Update player camera status
+      const playerObj = lobby.players.find(p => p.id === socket.id);
+      if (playerObj) {
+        playerObj.cameraActive = cameraActive;
+      }
+    }
+    
+    // Notify all players in lobby about camera status update
+    io.to(player.lobbyId).emit('playersUpdate', {
+      admin: { id: lobby.admin, name: lobby.adminName, cameraActive: lobby.adminCameraActive || false },
+      players: lobby.players
+    });
+    
+    console.log(`${player.name} ${cameraActive ? 'activated' : 'deactivated'} camera in lobby ${player.lobbyId}`);
+  });
+
+  // Handle video frame sharing
+  socket.on('videoFrame', (data) => {
+    const player = players.get(socket.id);
+    if (!player) {
+      console.log('❌ Video frame from unknown player:', socket.id);
+      return;
+    }
+    
+    const lobby = lobbies.get(player.lobbyId);
+    if (!lobby) {
+      console.log('❌ Video frame for unknown lobby:', player.lobbyId);
+      return;
+    }
+    
+    console.log(`📹 Broadcasting video frame from ${player.name} to lobby ${player.lobbyId}`);
+    
+    // Broadcast video frame to all other players in the lobby
+    socket.to(player.lobbyId).emit('videoFrame', {
+      playerId: socket.id,
+      playerName: player.name,
+      image: data.image,
+      timestamp: data.timestamp
+    });
+    
+    console.log(`📤 Video frame sent to ${lobby.players.length} players in lobby`);
+  });
+
   // Start game
-  socket.on('startGame', (data) => {
+  socket.on('startGame', () => {
     const player = players.get(socket.id);
     if (!player || !player.isAdmin) return;
     
-    const lobbyId = data?.lobbyId || player.lobbyId;
-    const lobby = lobbies.get(lobbyId);
+    const lobby = lobbies.get(player.lobbyId);
     if (!lobby || lobby.players.length === 0) {
       socket.emit('error', 'Mindestens ein Spieler erforderlich');
       return;
     }
     
     lobby.gameState = 'playing';
-    io.to(lobbyId).emit('gameStarting', {
+    io.to(player.lobbyId).emit('gameStarted', {
       round: lobby.currentRound,
       questions: jeopardyQuestions.round1,
       players: lobby.players,
@@ -335,7 +360,7 @@ io.on('connection', (socket) => {
       currentPlayer: lobby.currentPlayer
     });
     
-    console.log(`Game started in lobby ${lobbyId}`);
+    console.log(`Game started in lobby ${player.lobbyId}`);
   });
 
   // Select question
