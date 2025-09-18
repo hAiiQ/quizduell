@@ -2,6 +2,19 @@ const socket = io();
 let isAdmin = false;
 let lobbyId = '';
 
+// Debug socket connection
+socket.on('connect', function() {
+    console.log('✅ Socket connected to server');
+});
+
+socket.on('disconnect', function() {
+    console.log('❌ Socket disconnected from server');
+});
+
+socket.on('connect_error', function(error) {
+    console.error('❌ Socket connection error:', error);
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // Get lobby ID from URL
     lobbyId = window.location.pathname.split('/').pop();
@@ -21,7 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const playerData = sessionStorage.getItem('playerData');
     if (playerData) {
         const data = JSON.parse(playerData);
-        console.log('Joining/Rejoining lobby with data:', data);
+        console.log('🔄 Joining/Rejoining lobby with data:', data);
+        console.log('🏠 Lobby ID:', lobbyId);
+        
+        // Add loading indicator
+        document.body.innerHTML += '<div id="loadingIndicator" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; z-index: 9999;">🔄 Trete Lobby bei...</div>';
         
         // Always try rejoin first (handles both new joins and reconnects better)
         socket.emit('rejoinLobby', { 
@@ -29,8 +46,20 @@ document.addEventListener('DOMContentLoaded', function() {
             playerName: data.name, 
             isAdmin: data.isAdmin 
         });
+        
+        // Set timeout as fallback
+        setTimeout(() => {
+            const loading = document.getElementById('loadingIndicator');
+            if (loading) {
+                loading.remove();
+                console.error('❌ Timeout: Lobby beitritt fehlgeschlagen');
+                alert('❌ Fehler beim Beitreten zur Lobby. Versuche es erneut.');
+                window.location.href = '/';
+            }
+        }, 10000); // 10 Sekunden timeout
+        
     } else {
-        console.log('No player data found, redirecting to home');
+        console.log('❌ No player data found, redirecting to home');
         window.location.href = '/';
         return;
     }
@@ -50,9 +79,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Socket event handlers
     socket.on('joinedLobby', function(data) {
+        console.log('✅ Successfully joined lobby:', data);
+        
+        // Remove loading indicator
+        const loading = document.getElementById('loadingIndicator');
+        if (loading) loading.remove();
+        
         isAdmin = data.isAdmin;
         if (isAdmin) {
             adminActions.style.display = 'block';
+            console.log('🔧 Admin controls enabled');
         }
         
         // Store player data
@@ -83,10 +119,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     socket.on('error', function(message) {
-        alert(message);
-        if (message === 'Lobby nicht gefunden') {
+        console.error('❌ Lobby error:', message);
+        
+        // Remove loading indicator
+        const loading = document.getElementById('loadingIndicator');
+        if (loading) loading.remove();
+        
+        alert('❌ ' + message);
+        if (message === 'Lobby nicht gefunden' || message.includes('nicht gefunden')) {
             window.location.href = '/';
         }
+    });
+    
+    // Add general socket error handler
+    socket.on('rejoinError', function(message) {
+        console.error('❌ Rejoin error:', message);
+        
+        // Remove loading indicator  
+        const loading = document.getElementById('loadingIndicator');
+        if (loading) loading.remove();
+        
+        alert('❌ Fehler beim Beitreten: ' + message);
+        window.location.href = '/';
     });
 
     function updatePlayersDisplay(data) {
