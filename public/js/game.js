@@ -436,6 +436,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Initialize Video Chat System
+    initializeVideoChat();
+    
     // Close modal on outside click
     document.addEventListener('click', function(event) {
         if (event.target === questionModal) {
@@ -444,3 +447,109 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Video Chat Functions
+function initializeVideoChat() {
+    const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+    const jitsiContainer = document.getElementById('jitsi-video-container');
+    const loadJitsiBtn = document.getElementById('load-jitsi-btn');
+    const clearJitsiBtn = document.getElementById('clear-jitsi-btn');
+    const jitsiInput = document.getElementById('jitsi-url-input');
+    
+    // Toggle video container visibility
+    toggleVideoBtn.addEventListener('click', function() {
+        if (jitsiContainer.style.display === 'none') {
+            jitsiContainer.style.display = 'block';
+            toggleVideoBtn.textContent = '📹 Video aus';
+        } else {
+            jitsiContainer.style.display = 'none';
+            toggleVideoBtn.textContent = '📹 Video ein';
+        }
+    });
+    
+    // Load Jitsi
+    loadJitsiBtn.addEventListener('click', function() {
+        loadJitsiVideo();
+    });
+    
+    // Clear Jitsi
+    clearJitsiBtn.addEventListener('click', function() {
+        clearJitsiVideo();
+    });
+    
+    // Enter key support
+    jitsiInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadJitsiVideo();
+        }
+    });
+}
+
+function loadJitsiVideo() {
+    const input = document.getElementById('jitsi-url-input');
+    const iframe = document.getElementById('custom-jitsi-iframe');
+    const welcome = document.getElementById('jitsi-welcome');
+    const container = document.getElementById('jitsi-video-container');
+    
+    if (!input || !iframe || !welcome) {
+        console.error('❌ Jitsi elements not found');
+        alert('❌ Fehler: Video-Elemente nicht gefunden');
+        return;
+    }
+    
+    let url = input.value.trim();
+    
+    if (!url) {
+        alert('❌ Bitte gib einen Jitsi-Link ein');
+        return;
+    }
+    
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    // Ensure it's a valid Jitsi URL
+    if (!url.includes('meet.jit.si/')) {
+        if (url.includes('jit.si')) {
+            url = url.replace('jit.si', 'meet.jit.si');
+        } else {
+            alert('❌ Bitte verwende einen gültigen Jitsi Meet Link (meet.jit.si/...)');
+            return;
+        }
+    }
+    
+    console.log('🎥 Loading Jitsi in game:', url);
+    
+    // Show container if hidden
+    container.style.display = 'block';
+    
+    // Hide welcome, show iframe
+    welcome.style.display = 'none';
+    iframe.src = url;
+    iframe.style.display = 'block';
+    
+    // Update button text
+    document.getElementById('toggleVideoBtn').textContent = '📹 Video aus';
+    
+    // Update input with cleaned URL
+    input.value = url;
+    
+    console.log('✅ Jitsi loaded in game successfully');
+}
+
+function clearJitsiVideo() {
+    const iframe = document.getElementById('custom-jitsi-iframe');
+    const welcome = document.getElementById('jitsi-welcome');
+    
+    if (iframe) {
+        iframe.src = '';
+        iframe.style.display = 'none';
+    }
+    
+    if (welcome) {
+        welcome.style.display = 'block';
+    }
+    
+    console.log('🧹 Jitsi cleared in game');
+}
