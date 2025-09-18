@@ -60,7 +60,18 @@ document.addEventListener('DOMContentLoaded', function() {
         joinLobbyBtn.disabled = true;
         joinLobbyBtn.textContent = 'Trete bei...';
         
+        console.log('🔄 Attempting to join lobby:', { lobbyId: lobbyCode, playerName });
         socket.emit('joinLobby', { lobbyId: lobbyCode, playerName });
+        
+        // Add timeout fallback
+        setTimeout(() => {
+            if (joinLobbyBtn.disabled && joinLobbyBtn.textContent === 'Trete bei...') {
+                console.error('❌ Join timeout - no response from server');
+                alert('❌ Timeout beim Beitreten. Versuche es erneut.');
+                joinLobbyBtn.disabled = false;
+                joinLobbyBtn.textContent = 'Beitreten';
+            }
+        }, 8000); // 8 Sekunden Timeout
     });
 
     // Handle lobby created
@@ -83,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle lobby joined
     socket.on('joinedLobby', function(data) {
-        console.log('Joined lobby:', data);
+        console.log('✅ Successfully joined lobby from main.js:', data);
         
         // Store player data immediately
         const playerData = {
@@ -91,8 +102,11 @@ document.addEventListener('DOMContentLoaded', function() {
             isAdmin: data.isAdmin,
             lobbyId: data.lobbyId
         };
+        
+        console.log('💾 Storing player data:', playerData);
         sessionStorage.setItem('playerData', JSON.stringify(playerData));
         
+        console.log('🔄 Redirecting to lobby page...');
         // Add small delay to ensure data is stored
         setTimeout(() => {
             window.location.href = `/lobby/${data.lobbyId}`;
@@ -101,13 +115,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle errors
     socket.on('error', function(message) {
-        alert(message);
+        console.error('❌ Main.js error received:', message);
+        alert('❌ Fehler: ' + message);
         
         // Re-enable buttons
         createLobbyBtn.disabled = false;
         createLobbyBtn.textContent = 'Lobby erstellen';
         joinLobbyBtn.disabled = false;
         joinLobbyBtn.textContent = 'Beitreten';
+    });
+    
+    // Add socket connection debugging
+    socket.on('connect', function() {
+        console.log('✅ Main.js - Socket connected');
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('❌ Main.js - Socket disconnected');
+    });
+    
+    socket.on('connect_error', function(error) {
+        console.error('❌ Main.js - Socket connection error:', error);
     });
 
     // Handle Enter key press
