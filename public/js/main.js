@@ -65,21 +65,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle lobby created
     socket.on('lobbyCreated', function(data) {
-        console.log('DEBUG: Lobby created:', data);
-        
         // Store player data immediately
         const playerData = {
             name: adminNameInput.value.trim(),
             isAdmin: data.isAdmin,
             lobbyId: data.lobbyId
         };
-        
-        console.log('DEBUG: Storing playerData:', playerData);
         sessionStorage.setItem('playerData', JSON.stringify(playerData));
-        
-        // Verify it was stored
-        const storedData = sessionStorage.getItem('playerData');
-        console.log('DEBUG: Verified stored data:', storedData);
         
         // Add small delay to ensure data is stored
         setTimeout(() => {
@@ -89,21 +81,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle lobby joined
     socket.on('lobbyJoined', function(data) {
-        console.log('DEBUG: Joined lobby:', data);
-        
         // Store player data immediately  
         const playerData = {
             name: playerNameInput.value.trim(),
             isAdmin: data.isAdmin,
             lobbyId: data.lobbyId
         };
-        
-        console.log('DEBUG: Storing playerData for join:', playerData);
         sessionStorage.setItem('playerData', JSON.stringify(playerData));
-        
-        // Verify it was stored
-        const storedData = sessionStorage.getItem('playerData');
-        console.log('DEBUG: Verified stored data for join:', storedData);
         
         // Add small delay to ensure data is stored
         setTimeout(() => {

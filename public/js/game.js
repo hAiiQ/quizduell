@@ -31,8 +31,8 @@ function initializeGameJitsi() {
     
     // Check if Jitsi API is available
     if (typeof JitsiMeetExternalAPI === 'undefined') {
-        console.error('❌ Jitsi API not loaded');
-        showGameJitsiError('Jitsi API nicht verfügbar');
+        console.warn('⚠️ Jitsi API not loaded - continuing without video');
+        showGameJitsiError('Jitsi API nicht verfügbar - Spiel läuft ohne Video');
         return;
     }
     
@@ -142,18 +142,18 @@ function initializeGameJitsi() {
         });
         
         gameJitsiApi.addEventListener('error', (error) => {
-            console.error('❌ 5-Camera Game Jitsi error:', error);
+            console.warn('⚠️ Game Jitsi connection issue:', error);
             clearTimeout(joinTimeout);
-            updateCameraStatus('error', 'Verbindungsfehler');
-            showGameJitsiError('Verbindungsfehler: ' + (error.message || 'Unbekannt'));
+            updateCameraStatus('error', 'Video-Problem');
+            showGameJitsiError('Verbindungsproblem - Spiel läuft ohne Video weiter');
         });
         
         console.log('🎮 5-Camera Game Jitsi API instance created');
         
     } catch (error) {
-        console.error('❌ Error initializing 5-camera game Jitsi:', error);
-        updateCameraStatus('error', 'Initialisierungsfehler');
-        showGameJitsiError('Initialisierungsfehler: ' + error.message);
+        console.warn('⚠️ Game Jitsi initialization skipped:', error.message);
+        updateCameraStatus('error', 'Video nicht verfügbar');
+        showGameJitsiError('Video nicht verfügbar - Spiel läuft normal weiter');
     }
 }
 
@@ -282,20 +282,26 @@ function hideGameJitsiLoading() {
 }
 
 function showGameJitsiError(message = 'Kamera-Fehler') {
-    console.error('❌ Game Jitsi Error:', message);
+    console.warn('⚠️ Game Jitsi Info:', message);
     const loading = document.getElementById('game-jitsi-loading');
     if (loading) {
+        // Less intrusive - just show a simple message without big error
         loading.innerHTML = `
             <div class="loading-content">
-                <div style="font-size: 36px; margin-bottom: 10px; color: #dc3545;">❌</div>
-                <div style="font-size: 16px; color: #dc3545; margin-bottom: 8px;">Kamera-Fehler</div>
+                <div style="font-size: 24px; margin-bottom: 10px; color: #ffc107;">⚠️</div>
+                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Kameras nicht verfügbar</div>
                 <div style="font-size: 12px; color: #888; margin-bottom: 15px;">${message}</div>
-                <button onclick="retryGameJitsi()" style="background: #0066cc; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 12px;">
-                    🔄 Erneut versuchen
-                </button>
+                <div style="font-size: 11px; color: #999;">Das Spiel funktioniert auch ohne Video</div>
             </div>
         `;
         loading.style.display = 'flex';
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            if (loading) {
+                loading.style.display = 'none';
+            }
+        }, 3000);
     }
 }
 
